@@ -20,3 +20,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Added background rebuilds that scale to large sites: posts load in batches, ranking skips words and links in more than 500 posts, rebuilds don’t overlap, and edits trigger them only when they affect related posts
 * Added `count` `0` to turn off the list, which also skips ranking in rebuilds, for sites that want only in-content links
 * Added `composer bench`, which measures the time and memory of a rebuild, on generated or exported posts
+* Added `links_class` to give in-content links the class `ntrnllnk-inline`

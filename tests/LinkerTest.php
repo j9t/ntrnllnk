@@ -112,6 +112,13 @@ final class LinkerTest extends TestCase {
 		);
 	}
 
+	public function test_link_adds_class(): void {
+		$this->assertSame(
+			'<p><a href="/potter/" class="ntrnllnk-inline">Harry Potter</a></p>',
+			Linker::link( '<p>Harry Potter</p>', self::URLS, 3, 'ntrnllnk-inline' )
+		);
+	}
+
 	public function test_link_returns_html_unchanged_without_phrases(): void {
 		$this->assertSame( '<p>Harry Potter</p>', Linker::link( '<p>Harry Potter</p>', [], 3 ) );
 	}

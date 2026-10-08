@@ -37,8 +37,9 @@ final class Linker {
 	 * @param string                $html  HTML.
 	 * @param array<string, string> $urls  Phrases and their target URLs.
 	 * @param int                   $count Maximum number of links.
+	 * @param string                $class_link Class of the links, if any.
 	 */
-	public static function link( string $html, array $urls, int $count ): string {
+	public static function link( string $html, array $urls, int $count, string $class_link = '' ): string {
 		if ( ! $urls || $count < 1 ) {
 			return $html;
 		}
@@ -64,7 +65,7 @@ final class Linker {
 					$block_linked = false;
 				}
 			} elseif ( 0 === $depth_skip && ! $block_linked && '' !== trim( $token ) ) {
-				$tokens[ $index ] = self::link_text( $token, $urls );
+				$tokens[ $index ] = self::link_text( $token, $urls, $class_link );
 				if ( $tokens[ $index ] !== $token ) {
 					$block_linked = true;
 					--$count;
@@ -96,9 +97,10 @@ final class Linker {
 	 * Links the first phrase mention in a text node, if any, and removes its target
 	 *
 	 * @param string                $text Text node (HTML-escaped).
-	 * @param array<string, string> $urls Phrases and their target URLs, longest first.
+	 * @param array<string, string> $urls  Phrases and their target URLs, longest first.
+	 * @param string                $class_link Class of the link, if any.
 	 */
-	private static function link_text( string $text, array &$urls ): string {
+	private static function link_text( string $text, array &$urls, string $class_link ): string {
 		$phrases = [];
 		foreach ( array_keys( $urls ) as $phrase ) {
 			$phrases[ htmlspecialchars( $phrase, ENT_NOQUOTES, 'UTF-8' ) ] = $phrase;
@@ -112,6 +114,8 @@ final class Linker {
 		$url                  = $urls[ $phrases[ $match[1][0] ] ];
 		$urls                 = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
 
-		return substr( $text, 0, $offset ) . '<a href="' . htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' ) . '">' . $mention . '</a>' . substr( $text, $offset + strlen( $mention ) );
+		$attribute_class = '' === $class_link ? '' : ' class="' . htmlspecialchars( $class_link, ENT_QUOTES, 'UTF-8' ) . '"';
+
+		return substr( $text, 0, $offset ) . '<a href="' . htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' ) . '"' . $attribute_class . '>' . $mention . '</a>' . substr( $text, $offset + strlen( $mention ) );
 	}
 }

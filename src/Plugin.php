@@ -99,7 +99,7 @@ final class Plugin {
 	/**
 	 * Returns the settings, adjustable via the `ntrnllnk_settings` filter
 	 *
-	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], language: string, weights: array<string, float>, score_min: float}
+	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array<string, float>, score_min: float}
 	 */
 	public static function settings(): array {
 		$defaults = [
@@ -114,6 +114,7 @@ final class Plugin {
 			'links_inline_max'             => 3,
 			'links_inline_exclude_phrases' => [],
 			'links_inline_exclude_posts'   => [],
+			'links_class'                  => false,
 			'language'                     => 'auto',
 			'weights'                      => Ranker::WEIGHTS,
 			'score_min'                    => 0.02,
@@ -122,7 +123,7 @@ final class Plugin {
 		/**
 		 * Filters the settings
 		 *
-		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `links_inline_exclude_phrases`, `links_inline_exclude_posts`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), and `score_min`.
+		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `links_inline_exclude_phrases`, `links_inline_exclude_posts`, `links_class`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), and `score_min`.
 		 */
 		return array_merge( $defaults, apply_filters( 'ntrnllnk_settings', $defaults ) );
 	}
@@ -500,7 +501,7 @@ final class Plugin {
 			}
 		}
 
-		return Linker::link( $content, $urls_phrases, $settings['links_inline_max'] );
+		return Linker::link( $content, $urls_phrases, $settings['links_inline_max'], $settings['links_class'] ? 'ntrnllnk-inline' : '' );
 	}
 
 	/**

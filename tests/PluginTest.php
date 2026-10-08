@@ -309,6 +309,43 @@ final class PluginTest extends TestCase {
 		$this->assertSame( '<p>Text</p>', Plugin::render( '<p>Text</p>' ) );
 	}
 
+	public function test_html_leaves_links_without_class(): void {
+		$this->settings( [ 'links_class' => true ] );
+		Functions\when( 'get_post_meta' )->justReturn( [ 11 ] );
+		Functions\when( 'get_posts' )->justReturn(
+			[
+				$this->post(
+					[
+						'ID'         => 11,
+						'post_title' => 'A',
+					]
+				),
+			]
+		);
+
+		$this->assertSame(
+			'<section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="https://example.com/11/">A</a></li></ul></section>',
+			Plugin::html( 7 )
+		);
+	}
+
+	public function test_link_content_adds_class_to_links(): void {
+		$this->settings(
+			[
+				'links_inline' => true,
+				'links_class'  => true,
+			]
+		);
+		$this->view( 7 );
+		Functions\when( 'get_option' )->justReturn( [ 'Agatha Christie' => 11 ] );
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ) ] );
+
+		$this->assertSame(
+			'<p><a href="https://example.com/11/" class="ntrnllnk-inline">Agatha Christie</a></p>',
+			Plugin::link_content( '<p>Agatha Christie</p>' )
+		);
+	}
+
 	public function test_link_content_links_published_targets_only_once(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );

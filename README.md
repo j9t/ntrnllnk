@@ -14,7 +14,7 @@ ntrnllnk appends its list to the content of single posts:
 <section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="…">…</a></li>…</ul></section>
 ```
 
-It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it. To change the markup, use the `ntrnllnk_html` filter, which receives the HTML, the related posts, and the ID of the post they relate to.
+It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it. With `links_class`, in-content links (see below) get the class `ntrnllnk-inline`, to style or track them without touching posts. To change the markup, use the `ntrnllnk_html` filter, which receives the HTML, the related posts, and the ID of the post they relate to.
 
 ### Placement
 
@@ -72,6 +72,7 @@ add_filter(
 | `links_inline_max` | `3` | Maximum number of in-content links per post |
 | `links_inline_exclude_phrases` | `[]` | Phrases never to link, e.g., `['Happy End', 'Miss Marple']` |
 | `links_inline_exclude_posts` | `[]` | IDs of posts whose content gets no in-content links, e.g., `[123, 456]` |
+| `links_class` | `false` | Whether in-content links get the class `ntrnllnk-inline` (links in the list can be selected with `.ntrnllnk a`) |
 | `language` | `'auto'` | Language of the content: `'auto'` detects it per post, `'de'` or `'en'` sets it for all posts |
 | `weights` | `['words' => 0.6, 'links' => 0.4]` | Weights of the signals (see below) |
 | `score_min` | `0.02` | Minimum score (0–1) for a post to count as related; posts with fewer matches show fewer related posts, or none |
