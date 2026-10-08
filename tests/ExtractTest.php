@@ -47,6 +47,15 @@ final class ExtractTest extends TestCase {
 		$this->assertNull( Extract::heading_level_top( '<p>Text with <header>no headings</header></p>' ) );
 	}
 
+	public function test_hrefs_returns_unique_absolute_targets_with_queries(): void {
+		$html = '<a href="/?p=3851">A</a><a href="https://www.example.com/books/?p=1&amp;b=2#c">B</a><a href="/?p=3851">A</a><a href="#top">Top</a>';
+
+		$this->assertSame(
+			[ 'https://www.example.com/?p=3851', 'https://www.example.com/books/?p=1&b=2#c' ],
+			Extract::hrefs( $html, 'https://www.example.com' )
+		);
+	}
+
 	public function test_links_returns_unique_normalized_targets(): void {
 		$html = '<a href="https://www.example.com/books/3499012464/?ref=x"><img src="cover.jpg"></a>'
 			. '<a href="https://www.example.com/books/3499012464/">Title</a>'

@@ -7,9 +7,9 @@
 	<exclude-pattern>/vendor/*</exclude-pattern>
 	<exclude-pattern>/.phpunit.cache/*</exclude-pattern>
 	<exclude-pattern>/languages/*</exclude-pattern>
+	<exclude-pattern>/tests/stubs.php</exclude-pattern>
 
 	<arg name="extensions" value="php"/>
-	<arg name="cache" value=".phpunit.cache/phpcs"/>
 	<arg value="sp"/>
 
 	<config name="minimum_wp_version" value="6.5"/>

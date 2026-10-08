@@ -37,6 +37,7 @@
     "php": ">=8.1"
   },
   "require-dev": {
+    "brain/monkey": "^2.7",
     "phpcompatibility/phpcompatibility-wp": "^2.1",
     "phpstan/phpstan": "^2.3",
     "phpunit/phpunit": "^13.4",

@@ -68,10 +68,23 @@ final class Extract {
 	 * @return string[]
 	 */
 	public static function links( string $html, string $url_base = '' ): array {
+		return array_values( array_unique( array_filter( array_map( [ self::class, 'normalize_url' ], self::hrefs( $html, $url_base ) ) ) ) );
+	}
+
+	/**
+	 * Returns the unique, absolute HTTP(S) targets of all links, as they are
+	 *
+	 * Root-relative targets are resolved against `$url_base`, if given; other relative targets are skipped.
+	 *
+	 * @param string $html     HTML.
+	 * @param string $url_base Site URL, e.g., `https://example.com`.
+	 * @return string[]
+	 */
+	public static function hrefs( string $html, string $url_base = '' ): array {
 		preg_match_all( '#<a\b[^>]*?\shref\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))#i', $html, $matches, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL );
 
 		$origin_base = self::origin( $url_base );
-		$links       = [];
+		$hrefs       = [];
 		foreach ( $matches as $match ) {
 			$href = trim( html_entity_decode( $match[1] ?? $match[2] ?? $match[3] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
 			if ( str_starts_with( $href, '//' ) ) {
@@ -82,13 +95,12 @@ final class Extract {
 				}
 				$href = $origin_base . $href;
 			}
-			$link = self::normalize_url( $href );
-			if ( null !== $link ) {
-				$links[ $link ] = true;
+			if ( null !== self::normalize_url( $href ) ) {
+				$hrefs[ $href ] = true;
 			}
 		}
 
-		return array_keys( $links );
+		return array_keys( $hrefs );
 	}
 
 	/**

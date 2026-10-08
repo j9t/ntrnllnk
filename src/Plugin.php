@@ -57,6 +57,8 @@ final class Plugin {
 		add_action( self::HOOK_REBUILD_DAILY, [ self::class, 'rebuild' ] );
 		add_action( 'transition_post_status', [ self::class, 'on_transition_post_status' ], 10, 3 );
 		add_action( 'before_delete_post', [ self::class, 'on_before_delete_post' ], 10, 2 );
+		add_action( 'set_object_terms', [ self::class, 'on_set_object_terms' ], 10, 6 );
+		add_action( 'delete_term', [ self::class, 'on_delete_term' ], 10, 5 );
 	}
 
 	/**
@@ -151,6 +153,43 @@ final class Plugin {
 	 */
 	public static function on_before_delete_post( int $post_id, \WP_Post $post ): void {
 		if ( 'publish' === $post->post_status && self::is_enabled( $post ) ) {
+			self::schedule_rebuild();
+		}
+	}
+
+	/**
+	 * Schedules a rebuild when a published post’s terms change outside of saving it (as in bulk edits)
+	 *
+	 * @param int                     $id_object   Object ID.
+	 * @param array<int|string|mixed> $terms       Terms as given.
+	 * @param int[]                   $ids_tt      New term taxonomy IDs.
+	 * @param string                  $taxonomy    Taxonomy.
+	 * @param bool                    $append      Whether terms were appended.
+	 * @param int[]                   $ids_tt_old  Old term taxonomy IDs.
+	 */
+	public static function on_set_object_terms( int $id_object, array $terms, array $ids_tt, string $taxonomy, bool $append, array $ids_tt_old ): void {
+		sort( $ids_tt );
+		sort( $ids_tt_old );
+		if ( array_map( 'intval', $ids_tt ) === array_map( 'intval', $ids_tt_old ) ) {
+			return;
+		}
+		$post = get_post( $id_object );
+		if ( $post instanceof \WP_Post && 'publish' === $post->post_status && self::is_enabled( $post ) ) {
+			self::schedule_rebuild();
+		}
+	}
+
+	/**
+	 * Schedules a rebuild when a term that posts had is deleted
+	 *
+	 * @param int    $id_term     Term ID.
+	 * @param int    $id_tt       Term taxonomy ID.
+	 * @param string $taxonomy   Taxonomy.
+	 * @param mixed  $term        Deleted term.
+	 * @param int[]  $ids_objects IDs of the objects that had the term.
+	 */
+	public static function on_delete_term( int $id_term, int $id_tt, string $taxonomy, mixed $term, array $ids_objects ): void {
+		if ( $ids_objects ) {
 			self::schedule_rebuild();
 		}
 	}
@@ -309,7 +348,7 @@ final class Plugin {
 	/**
 	 * Links the first mentions of other posts’ phrases in the content of a single post
 	 *
-	 * Links only to published posts, and not to posts the content already links to (outside the list of related posts).
+	 * Links only to published posts, and not to posts the content already links to (outside the list of related posts), so that no post is linked twice.
 	 *
 	 * @param string $content Post content.
 	 */
@@ -334,8 +373,16 @@ final class Plugin {
 				'posts_per_page' => -1,
 			]
 		);
-		$links = Extract::links( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() );
-		$urls  = [];
+		// Posts the content links to, by ID, so that any form of their URLs counts (like `?p=123`)
+		$host_site  = (string) Extract::normalize_url( home_url( '/' ) );
+		$ids_linked = [];
+		foreach ( Extract::hrefs( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() ) as $href ) {
+			if ( str_starts_with( (string) Extract::normalize_url( $href ) . '/', $host_site . '/' ) ) {
+				$ids_linked[ url_to_postid( $href ) ] = true;
+			}
+		}
+
+		$urls = [];
 		foreach ( $posts as $post ) {
 			$urls[ $post->ID ] = (string) get_permalink( $post );
 		}
@@ -343,7 +390,7 @@ final class Plugin {
 		$urls_phrases = [];
 		foreach ( $phrases as $phrase => $id_target ) {
 			$url = $urls[ $id_target ] ?? null;
-			if ( null !== $url && ! in_array( Extract::normalize_url( $url ), $links, true ) ) {
+			if ( null !== $url && ! isset( $ids_linked[ $id_target ] ) ) {
 				$urls_phrases[ (string) $phrase ] = 'relative' === $settings['urls'] ? wp_make_link_relative( $url ) : $url;
 			}
 		}

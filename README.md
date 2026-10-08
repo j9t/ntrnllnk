@@ -29,9 +29,11 @@ The shortcode also works with automatic placement: ntrnllnk then doesn’t appen
 
 ### In-Content Links
 
-With `links_inline` enabled, ntrnllnk also links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most `links_inline_max` such links per post, links each post only once, and leaves headings, existing links, code, tables, and figures (like images with their captions) alone. Links to posts the text already links to are skipped.
+With `links_inline` enabled, ntrnllnk also links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most `links_inline_max` such links per post, and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
 
-What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”), that appear in no other post’s title and that the post’s own text mentions at least three times. Matching is case-sensitive and includes the genitive (“Agatha Christies,” “Agatha Christie’s”).
+The text never links to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it, in whatever form (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
+
+What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German), that appear in no other post’s title and that the post’s own text mentions at least three times. Matching is case-sensitive and includes the genitive (“Agatha Christies,” “Agatha Christie’s”).
 
 In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
 
@@ -79,7 +81,7 @@ Each signal is a [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) vector, 
 
 Stopwords and stems depend on the language. With `language` set to `'auto'`, ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are.
 
-Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in the background (WP-Cron) a minute after a post is published, updated, unpublished, or deleted, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them. When showing the list, it checks again that each related post is still published.
+Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in the background (WP-Cron) a minute after a post is published, updated, unpublished, or deleted, or after a published post’s categories or tags change, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them. When showing the list, it checks again that each related post is still published.
 
 Uninstalling the plugin removes its post meta, option, and scheduled events.
 
@@ -94,7 +96,7 @@ composer test      # PHPUnit
 composer build     # Plugin files into dist/
 ```
 
-The classes in `src/` other than `Plugin.php` don’t call WordPress and are fully unit-tested; `Plugin.php` connects them to WordPress.
+The classes in `src/` other than `Plugin.php` don’t call WordPress. `Plugin.php` connects them to WordPress; its tests simulate WordPress with [Brain Monkey](https://github.com/Brain-WP/BrainMonkey).
 
 ### Building
 

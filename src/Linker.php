@@ -10,7 +10,7 @@ namespace Ntrnllnk;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Links the first mention of phrases in HTML, outside headings, links, code, tables, and figures (like images)
+ * Links the first mention of phrases in HTML, outside headings, links, code, tables, and figures (like images), and at most once per paragraph
  */
 final class Linker {
 
@@ -20,6 +20,11 @@ final class Linker {
 	private const ELEMENTS_SKIP = [ 'a', 'button', 'code', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'script', 'style', 'table', 'textarea' ];
 
 	/**
+	 * Elements that start a new paragraph, in which a new link may follow
+	 */
+	private const ELEMENTS_BLOCK = [ 'address', 'article', 'aside', 'blockquote', 'dd', 'details', 'div', 'dl', 'dt', 'figure', 'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'ul' ];
+
+	/**
 	 * Genitive endings a link includes (“Agatha Christies,” “Agatha Christie’s”)
 	 */
 	private const SUFFIXES = '(?:s|’s|&#8217;s|\'s)?';
@@ -27,7 +32,7 @@ final class Linker {
 	/**
 	 * Returns HTML with the first mention of each target’s phrases linked
 	 *
-	 * Matches are case-sensitive and respect word boundaries; at the same position, longer phrases win. Each target is linked once.
+	 * Matches are case-sensitive and respect word boundaries; at the same position, longer phrases win. Each target is linked once, and each paragraph (or other block) gets one link at most, so that links spread out.
 	 *
 	 * @param string                $html  HTML.
 	 * @param array<string, string> $urls  Phrases and their target URLs.
@@ -44,52 +49,55 @@ final class Linker {
 			return $html;
 		}
 
-		$depth_skip = 0;
+		$depth_skip   = 0;
+		$block_linked = false;
 		foreach ( $tokens as $index => $token ) {
 			if ( str_starts_with( $token, '<' ) ) {
-				if ( preg_match( '/^<(\/?)([a-z][a-z0-9]*)/i', $token, $match ) && in_array( strtolower( $match[2] ), self::ELEMENTS_SKIP, true ) ) {
+				if ( ! preg_match( '/^<(\/?)([a-z][a-z0-9]*)/i', $token, $match ) ) {
+					continue;
+				}
+				$element = strtolower( $match[2] );
+				if ( in_array( $element, self::ELEMENTS_SKIP, true ) ) {
 					$depth_skip = '/' === $match[1] ? max( 0, $depth_skip - 1 ) : $depth_skip + ( str_ends_with( $token, '/>' ) ? 0 : 1 );
 				}
-			} elseif ( 0 === $depth_skip && '' !== trim( $token ) ) {
-				$tokens[ $index ] = self::link_text( $token, $urls, $count );
+				if ( in_array( $element, self::ELEMENTS_BLOCK, true ) ) {
+					$block_linked = false;
+				}
+			} elseif ( 0 === $depth_skip && ! $block_linked && '' !== trim( $token ) ) {
+				$tokens[ $index ] = self::link_text( $token, $urls );
+				if ( $tokens[ $index ] !== $token ) {
+					$block_linked = true;
+					--$count;
+				}
 				if ( ! $urls || $count < 1 ) {
 					break;
 				}
-			}
-		}
+			}//end if
+		}//end foreach
 
 		return implode( '', $tokens );
 	}
 
 	/**
-	 * Links phrases in a text node, removing linked targets and counting down
+	 * Links the first phrase mention in a text node, if any, and removes its target
 	 *
-	 * @param string                $text  Text node (HTML-escaped).
-	 * @param array<string, string> $urls  Phrases and their target URLs, longest first.
-	 * @param int                   $count Remaining number of links.
+	 * @param string                $text Text node (HTML-escaped).
+	 * @param array<string, string> $urls Phrases and their target URLs, longest first.
 	 */
-	private static function link_text( string $text, array &$urls, int &$count ): string {
-		$result   = '';
-		$position = 0;
-		while ( $urls && $count > 0 ) {
-			$phrases = [];
-			foreach ( array_keys( $urls ) as $phrase ) {
-				$phrases[ htmlspecialchars( $phrase, ENT_NOQUOTES, 'UTF-8' ) ] = $phrase;
-			}
-			$pattern = '/(?<![\p{L}\p{N}])(' . implode( '|', array_map( fn( string $phrase ): string => preg_quote( $phrase, '/' ), array_keys( $phrases ) ) ) . ')' . self::SUFFIXES . '(?![\p{L}\p{N}])/u';
-			if ( ! preg_match( $pattern, $text, $match, PREG_OFFSET_CAPTURE, $position ) ) {
-				break;
-			}
-
-			[ $mention, $offset ] = $match[0];
-			$url                  = $urls[ $phrases[ $match[1][0] ] ];
-
-			$result  .= substr( $text, $position, $offset - $position ) . '<a href="' . htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' ) . '">' . $mention . '</a>';
-			$position = $offset + strlen( $mention );
-			$urls     = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
-			--$count;
+	private static function link_text( string $text, array &$urls ): string {
+		$phrases = [];
+		foreach ( array_keys( $urls ) as $phrase ) {
+			$phrases[ htmlspecialchars( $phrase, ENT_NOQUOTES, 'UTF-8' ) ] = $phrase;
+		}
+		$pattern = '/(?<![\p{L}\p{N}])(' . implode( '|', array_map( fn( string $phrase ): string => preg_quote( $phrase, '/' ), array_keys( $phrases ) ) ) . ')' . self::SUFFIXES . '(?![\p{L}\p{N}])/u';
+		if ( ! preg_match( $pattern, $text, $match, PREG_OFFSET_CAPTURE ) ) {
+			return $text;
 		}
 
-		return $result . substr( $text, $position );
+		[ $mention, $offset ] = $match[0];
+		$url                  = $urls[ $phrases[ $match[1][0] ] ];
+		$urls                 = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
+
+		return substr( $text, 0, $offset ) . '<a href="' . htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' ) . '">' . $mention . '</a>' . substr( $text, $offset + strlen( $mention ) );
 	}
 }

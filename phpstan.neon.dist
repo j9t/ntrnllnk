@@ -9,3 +9,6 @@ parameters:
     - uninstall.php
     - src
     - tests
+  excludePaths:
+    # Stand-ins for classes the WordPress stubs already declare
+    - tests/stubs.php

@@ -48,10 +48,17 @@ final class LinkerTest extends TestCase {
 		$this->assertSame( '<!-- Agatha Christie --><p><a href="/christie/">Agatha Christie</a></p>', Linker::link( $html, self::URLS, 3 ) );
 	}
 
+	public function test_link_links_once_per_paragraph(): void {
+		$this->assertSame(
+			'<p><a href="/potter/">Harry Potter</a> and <em>Agatha Christie</em></p><ul><li><a href="/christie/">Agatha Christie</a></li></ul>',
+			Linker::link( '<p>Harry Potter and <em>Agatha Christie</em></p><ul><li>Agatha Christie</li></ul>', self::URLS, 3 )
+		);
+	}
+
 	public function test_link_respects_maximum(): void {
 		$this->assertSame(
-			'<p><a href="/potter/">Harry Potter</a> and Agatha Christie</p>',
-			Linker::link( '<p>Harry Potter and Agatha Christie</p>', self::URLS, 1 )
+			'<p><a href="/potter/">Harry Potter</a></p><p>Agatha Christie</p>',
+			Linker::link( '<p>Harry Potter</p><p>Agatha Christie</p>', self::URLS, 1 )
 		);
 	}
 
