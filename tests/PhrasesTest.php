@@ -73,15 +73,53 @@ final class PhrasesTest extends TestCase {
 		$this->assertSame( [], Phrases::extract( [ 1 => Phrases::mentions( 'Zehn Tipps für Krimis', 'Hier sind zehn Tipps.' ) ] ) );
 	}
 
-	public function test_extract_drops_phrases_in_several_titles(): void {
-		$text    = 'Harry Potter, Harry Potter, Harry Potter';
+	public function test_extract_gives_shared_phrases_to_the_post_mentioning_them_most(): void {
 		$phrases = Phrases::extract(
 			[
-				1 => Phrases::mentions( 'Bücher wie Harry Potter', $text ),
-				2 => Phrases::mentions( 'Harry Potter in der richtigen Reihenfolge', $text ),
+				1 => Phrases::mentions( 'Stephen King: Die besten Bücher', str_repeat( 'Stephen King schrieb. ', 4 ) ),
+				2 => Phrases::mentions( 'Stephen King in der richtigen Reihenfolge', str_repeat( 'Stephen King schrieb. ', 12 ) ),
 			]
 		);
 
-		$this->assertSame( [], $phrases );
+		$this->assertSame( [ 'Stephen King' => 2 ], $phrases );
+	}
+
+	public function test_extract_gives_shared_phrases_to_the_leader_even_if_close(): void {
+		$phrases = Phrases::extract(
+			[
+				1 => Phrases::mentions( 'Stephen King: Die besten Bücher', str_repeat( 'Stephen King schrieb. ', 13 ) ),
+				2 => Phrases::mentions( 'Stephen King in der richtigen Reihenfolge', str_repeat( 'Stephen King schrieb. ', 10 ) ),
+			]
+		);
+
+		$this->assertSame( [ 'Stephen King' => 1 ], $phrases );
+	}
+
+	public function test_extract_gives_equally_mentioned_phrases_to_the_newer_post(): void {
+		$text    = 'Harry Potter, Harry Potter, Harry Potter';
+		$phrases = Phrases::extract(
+			[
+				1 => Phrases::mentions( 'Harry Potter in der richtigen Reihenfolge', $text ),
+				2 => Phrases::mentions( 'Bücher wie Harry Potter', $text ),
+			],
+			[
+				1 => 200,
+				2 => 100,
+			]
+		);
+
+		$this->assertSame( [ 'Harry Potter' => 1 ], $phrases );
+	}
+
+	public function test_extract_gives_equally_mentioned_and_dated_phrases_to_the_higher_id(): void {
+		$text    = 'Harry Potter, Harry Potter, Harry Potter';
+		$phrases = Phrases::extract(
+			[
+				2 => Phrases::mentions( 'Harry Potter in der richtigen Reihenfolge', $text ),
+				1 => Phrases::mentions( 'Bücher wie Harry Potter', $text ),
+			]
+		);
+
+		$this->assertSame( [ 'Harry Potter' => 2 ], $phrases );
 	}
 }

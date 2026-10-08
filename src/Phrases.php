@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Finds phrases that identify posts, as link texts for in-content links
  *
- * A phrase is a name-like run of capitalized words from a post’s title (“Agatha Christie,” “Herr der Ringe”), of two words or more. It identifies its post if no other title contains it and the post’s own text mentions it often enough to be about it.
+ * A phrase is a name-like run of capitalized words from a post’s title (“Agatha Christie,” “Herr der Ringe”), of two words or more. It identifies its post if the post’s own text mentions it often enough to be about it, and if other titles contain it, too, more often than any of those posts’ texts (as when an author has both an overview and a reading-order post); on a tie, the newer post gets it.
  */
 final class Phrases {
 
@@ -29,9 +29,10 @@ final class Phrases {
 	 * Returns the phrases that identify posts, each with its post’s ID
 	 *
 	 * @param array<int, array<string, int>> $mentions Posts by ID, with their title’s candidates and how often their text mentions them (see `mentions()`).
+	 * @param array<int, int>                $times    Publication times by post ID, to break ties (newer first, then higher ID).
 	 * @return array<string, int>
 	 */
-	public static function extract( array $mentions ): array {
+	public static function extract( array $mentions, array $times = [] ): array {
 		$owners = [];
 		foreach ( $mentions as $id => $counts ) {
 			foreach ( $counts as $phrase => $count ) {
@@ -41,8 +42,10 @@ final class Phrases {
 
 		$phrases = [];
 		foreach ( $owners as $phrase => $counts ) {
-			if ( 1 === count( $counts ) && reset( $counts ) >= self::COUNT_MENTIONS_MIN ) {
-				$phrases[ (string) $phrase ] = (int) array_key_first( $counts );
+			uksort( $counts, fn( int $a, int $b ): int => [ $counts[ $b ], $times[ $b ] ?? 0, $b ] <=> [ $counts[ $a ], $times[ $a ] ?? 0, $a ] );
+			$id = (int) array_key_first( $counts );
+			if ( $counts[ $id ] >= self::COUNT_MENTIONS_MIN ) {
+				$phrases[ (string) $phrase ] = $id;
 			}
 		}
 

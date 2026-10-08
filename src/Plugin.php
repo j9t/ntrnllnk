@@ -292,6 +292,7 @@ final class Plugin {
 		$url_base      = home_url();
 		$documents     = [];
 		$mentions      = [];
+		$times         = [];
 		foreach ( array_chunk( $ids, self::COUNT_BATCH ) as $ids_batch ) {
 			// Uncached, so that posts and their content do not pile up in the object cache
 			$posts = get_posts(
@@ -311,6 +312,7 @@ final class Plugin {
 				$content               = strip_shortcodes( $post->post_content );
 				$text                  = Extract::text( $content );
 				$mentions[ $post->ID ] = Phrases::mentions( Extract::text( $post->post_title ), $text );
+				$times[ $post->ID ]    = (int) get_post_timestamp( $post );
 				if ( ! $rank ) {
 					continue;
 				}
@@ -321,7 +323,7 @@ final class Plugin {
 					$post->post_title,
 					$content,
 					self::terms( $post, $taxonomies ),
-					(int) get_post_timestamp( $post ),
+					$times[ $post->ID ],
 					$tokenizers[ $language ],
 					$url_base
 				);
@@ -330,7 +332,7 @@ final class Plugin {
 
 		$related = $rank ? ( new Ranker( $settings['weights'], $settings['score_min'] ) )->related( $documents, $settings['count'] ) : [];
 		unset( $documents );
-		update_option( self::OPTION_PHRASES, Phrases::extract( $mentions ), $settings['links_inline'] );
+		update_option( self::OPTION_PHRASES, Phrases::extract( $mentions, $times ), $settings['links_inline'] );
 		// `update_option()` changes autoloading only along with the value
 		wp_set_option_autoload( self::OPTION_PHRASES, $settings['links_inline'] );
 

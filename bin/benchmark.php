@@ -130,9 +130,11 @@ function ntrnllnk_benchmark( array $posts, int $count, int $frequency_max, bool 
 	$tokenizers = [];
 	$documents  = [];
 	$mentions   = [];
+	$times      = [];
 	foreach ( $posts as $id => $post ) {
 		$text            = Extract::text( $post['content'] );
 		$mentions[ $id ] = Phrases::mentions( Extract::text( $post['title'] ), $text );
+		$times[ $id ]    = $post['time'];
 		if ( $count < 1 ) {
 			continue;
 		}
@@ -149,7 +151,7 @@ function ntrnllnk_benchmark( array $posts, int $count, int $frequency_max, bool 
 	$duration_ranking = microtime( true ) - $time;
 
 	$time             = microtime( true );
-	$phrases          = Phrases::extract( $mentions );
+	$phrases          = Phrases::extract( $mentions, $times );
 	$duration_phrases = microtime( true ) - $time;
 
 	$lines = [

@@ -535,7 +535,8 @@ final class PluginTest extends TestCase {
 		Functions\expect( 'get_posts' )->times( 3 )->andReturn( [ 1 ], [ $post ], [ 1 ] );
 		$this->expect_rebuild_runs();
 		Functions\expect( 'update_object_term_cache' )->never();
-		Functions\expect( 'get_post_timestamp' )->never();
+		// Needed for phrases, too, to break ties
+		Functions\when( 'get_post_timestamp' )->justReturn( 1 );
 		Functions\when( 'get_object_taxonomies' )->justReturn( [] );
 		Functions\when( 'get_locale' )->justReturn( 'en_US' );
 		Functions\when( 'strip_shortcodes' )->returnArg();
