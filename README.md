@@ -86,6 +86,14 @@ ntrnllnk compares every published post with every other, using two signals:
 
 Each signal is a [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) vector, compared by cosine similarity. Rare features count more than common ones, and features that all posts share—site-wide boilerplate, a link on every post, a catch-all category—don’t count at all. Neither do features in more than 500 posts, which, on large sites, say little but would slow down the comparison considerably. The score is the weighted sum of both similarities, between 0 and 1; ties go to the newer post.
 
+### Scores
+
+Scores tend to be small: Two posts on the same subject often score around 0.05–0.1, and only near-duplicates get close to 1. They also depend on the site—the more varied its topics, the lower they are overall—so a good `score_min` on one site may not suit another.
+
+`score_min` affects only the list of related posts, not in-content links. Raising it drops weak matches, so lists get shorter, and posts without strong matches lose their list. As an example, on one German book blog with about 150 posts, entries below 0.03 were mostly unrelated, those between 0.03 and 0.04 mixed, and most above 0.04 fitting; raising `score_min` from 0.02 to 0.03 removed 44 of about 740 entries and left one post without a list, while 0.05 left 25 posts without one.
+
+A changed `score_min` (like other ranking settings) applies from the next rebuild on, after the next relevant post change, or at the latest the next day.
+
 Stopwords and stems depend on the language. With `language` set to `'auto'`, ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are.
 
 Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in the background (WP-Cron) a minute after a post is published, unpublished, or deleted, after a published post’s title, content, date, or password changes, or after its categories or tags change, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
