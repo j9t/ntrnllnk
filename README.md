@@ -1,6 +1,6 @@
 # ntrnllnk—Internal Linking Plugin for WordPress
 
-[![Build status](https://github.com/j9t/ntrnllnk/workflows/Tests/badge.svg)](https://github.com/j9t/ntrnllnk/actions)
+[![Build status](https://github.com/j9t/ntrnllnk/workflows/Tests/badge.svg)](https://github.com/j9t/ntrnllnk/actions) [![GitHub Sponsors](https://badgen.net/static/Support/Open%20Source/cyan)](https://github.com/sponsors/j9t)
 
 ntrnllnk is a WordPress plugin for internal linking. It finds related posts automatically—without any manual input—and lists them after each post under “Further reading.” Optionally, it also links mentions of other posts’ subjects within the text. It supports German and English content.
 
@@ -140,3 +140,5 @@ composer bench -- --input=benchmark.json --compare
 ```
 
 `--compare` also ranks without skipping features in many posts and reports how many related posts match; `--frequency-max=1000` tries another limit than 500; `--count=0` measures a site without the list. Unlike a real rebuild, the benchmark neither strips shortcodes nor uses categories and tags.
+
+<!-- @@ Add work reference? -->
