@@ -1,0 +1,40 @@
+name: "Tests"
+
+on:
+  push:
+    branches: main
+    paths-ignore: ["**.md"]
+  pull_request:
+    paths-ignore: ["**.md"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        # PHPUnit needs PHP 8.4+; PHPCompatibility checks the plugin against PHP 8.1+
+        php: ["8.4", "8.5"]
+    name: "PHP ${{ matrix.php }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: "Install dependencies"
+        run: composer install --no-progress
+      - name: "Lint"
+        # Lint results don’t vary by PHP version
+        if: matrix.php == '8.5'
+        run: composer lint
+      - name: "Test"
+        run: composer test

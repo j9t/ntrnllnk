@@ -1,0 +1,4 @@
+.phpunit.cache/
+dist/
+vendor/
+.DS_Store

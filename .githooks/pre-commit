@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+
+# Git apps may not load the shell profile, so add the usual Homebrew locations
+PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+
+composer lint && composer test

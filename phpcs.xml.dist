@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<ruleset name="ntrnllnk">
+	<description>WordPress Coding Standards, with PSR-4 file names</description>
+
+	<file>.</file>
+	<exclude-pattern>/dist/*</exclude-pattern>
+	<exclude-pattern>/vendor/*</exclude-pattern>
+	<exclude-pattern>/.phpunit.cache/*</exclude-pattern>
+	<exclude-pattern>/languages/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg name="cache" value=".phpunit.cache/phpcs"/>
+	<arg value="sp"/>
+
+	<config name="minimum_wp_version" value="6.5"/>
+	<config name="testVersion" value="8.1-"/>
+
+	<rule ref="WordPress">
+		<!-- Classes follow PSR-4 so Composer can autoload them -->
+		<exclude name="WordPress.Files.FileName"/>
+		<!-- Project conventions: short arrays, comments without final period, files without final newline -->
+		<exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+		<exclude name="Squiz.Commenting.InlineComment.InvalidEndChar"/>
+		<exclude name="PSR2.Files.EndFileNewline"/>
+	</rule>
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="ntrnllnk"/>
+			</property>
+		</properties>
+	</rule>
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="ntrnllnk"/>
+			</property>
+		</properties>
+		<!-- The test bootstrap stands in for WordPress -->
+		<exclude-pattern>/tests/bootstrap.php</exclude-pattern>
+	</rule>
+	<rule ref="PHPCompatibilityWP"/>
+
+	<!-- Development scripts run on the command line, outside WordPress -->
+	<rule ref="WordPress.WP.AlternativeFunctions">
+		<exclude-pattern>/bin/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.Security.EscapeOutput">
+		<exclude-pattern>/bin/*</exclude-pattern>
+	</rule>
+	<rule ref="WordPress.PHP.DiscouragedPHPFunctions">
+		<exclude-pattern>/bin/*</exclude-pattern>
+	</rule>
+
+	<!-- Tests are not shipped and need not document every method -->
+	<rule ref="Squiz.Commenting">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+	<rule ref="Generic.Commenting.DocComment.MissingShort">
+		<exclude-pattern>/tests/*</exclude-pattern>
+	</rule>
+</ruleset>

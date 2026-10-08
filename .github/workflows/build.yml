@@ -1,0 +1,39 @@
+name: "Build"
+
+on:
+  push:
+    branches: main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # The oldest supported PHP version, so that the build’s syntax check covers it
+    name: "Build (PHP 8.1)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.1"
+          coverage: none
+      - name: "Build"
+        run: composer build
+      - name: "Upload"
+        uses: actions/upload-artifact@v7
+        with:
+          name: ntrnllnk
+          # Without the zip, the artifact itself is the plugin zip, with the `ntrnllnk/` folder WordPress expects
+          path: |
+            dist/
+            !dist/ntrnllnk.zip
+          retention-days: 30

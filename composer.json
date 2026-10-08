@@ -1,0 +1,57 @@
+{
+  "authors": [
+    {
+      "name": "Jens Oliver Meiert"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Ntrnllnk\\": "src/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    },
+    "sort-packages": true
+  },
+  "description": "WordPress plugin for automatic internal linking",
+  "funding": [
+    {
+      "type": "github",
+      "url": "https://github.com/sponsors/j9t"
+    }
+  ],
+  "homepage": "https://github.com/j9t/ntrnllnk",
+  "keywords": [
+    "internal-links",
+    "links",
+    "related-posts",
+    "seo",
+    "wordpress",
+    "wordpress-plugin"
+  ],
+  "license": "MIT",
+  "name": "j9t/ntrnllnk",
+  "require": {
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "phpstan/phpstan": "^2.3",
+    "phpunit/phpunit": "^13.4",
+    "szepeviktor/phpstan-wordpress": "^2.0",
+    "wp-coding-standards/wpcs": "^3.4"
+  },
+  "scripts": {
+    "build": "@php bin/build.php",
+    "lint": [
+      "phpcs",
+      "phpstan analyse --memory-limit=1G --no-progress"
+    ],
+    "lint:fix": "phpcbf",
+    "post-install-cmd": "git config core.hooksPath .githooks || true",
+    "test": "phpunit"
+  },
+  "type": "wordpress-plugin"
+}
