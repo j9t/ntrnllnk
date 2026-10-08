@@ -115,4 +115,17 @@ final class LinkerTest extends TestCase {
 	public function test_link_returns_html_unchanged_without_phrases(): void {
 		$this->assertSame( '<p>Harry Potter</p>', Linker::link( '<p>Harry Potter</p>', [], 3 ) );
 	}
+
+	public function test_mentioned_keeps_phrases_the_html_contains(): void {
+		$this->assertSame(
+			[ 'Tom & Jerry' => 12 ],
+			Linker::mentioned(
+				'<p>Tom &amp; Jerry, not Agatha</p>',
+				[
+					'Agatha Christie' => 11,
+					'Tom & Jerry'     => 12,
+				]
+			)
+		);
+	}
 }

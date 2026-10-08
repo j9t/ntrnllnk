@@ -149,6 +149,18 @@ final class RankerTest extends TestCase {
 		$this->assertEqualsWithDelta( 1.0, $related[1][2], 0.0001 );
 	}
 
+	public function test_related_ignores_features_shared_by_too_many_documents(): void {
+		$documents = [
+			$this->document( 1, [ 'dragon', 'book' ] ),
+			$this->document( 2, [ 'dragon', 'magic' ] ),
+			$this->document( 3, [ 'dragon', 'elves' ] ),
+			$this->document( 4, [ 'cooking' ] ),
+		];
+
+		$this->assertSame( [ 2, 3 ], array_keys( ( new Ranker() )->related( $documents, 5 )[1] ) );
+		$this->assertSame( [], ( new Ranker( frequency_max: 2 ) )->related( $documents, 5 )[1] );
+	}
+
 	public function test_related_handles_empty_input(): void {
 		$this->assertSame( [], ( new Ranker() )->related( [], 5 ) );
 	}

@@ -21,6 +21,12 @@ final class WP_Post {
 
 	public string $post_title = '';
 
+	public string $post_name = '';
+
+	public string $post_date = '0000-00-00 00:00:00';
+
+	public string $post_password = '';
+
 	public string $post_content = '';
 
 	/**

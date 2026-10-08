@@ -37,6 +37,8 @@ What counts as a post’s subject comes from its title: names and other runs of 
 
 In-content links are added when a post is shown, not saved to it, so turning them off removes them all. To keep particular links out instead, exclude phrases with `links_inline_exclude_phrases` or posts with `links_inline_exclude_posts`; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases. All of this applies immediately.
 
+To use in-content links without the list, set `count` to `0`; this also saves most of the work in the background (see “Performance”).
+
 In-content links are off by default for now. This default may change before the first stable release; to keep a particular behavior, set `links_inline` explicitly.
 
 ### Settings
@@ -60,7 +62,7 @@ add_filter(
 | Setting | Default | Description |
 |---|---|---|
 | `post_types` | `['post']` | Post types to relate and show related posts for |
-| `count` | `5` | Maximum number of related posts |
+| `count` | `5` | Maximum number of related posts; `0` turns the list off |
 | `heading` | “Further reading” (translated) | Heading of the list |
 | `heading_level` | `2` | Heading level (2–6), or `'auto'` for the highest level in the post’s content (or 2 without headings), so that the list sits at the level of the content’s top sections |
 | `urls` | `'absolute'` | `'absolute'` for full URLs, which work wherever the content goes (feeds, REST API, email), or `'relative'` for root-relative URLs (`/…`) |
@@ -81,13 +83,29 @@ ntrnllnk compares every published post with every other, using two signals:
 1. **Words** from title, headings, and body text (the title counting three times, headings twice), plus the post’s categories and tags (each counting like a title word); stopwords are dropped, and words are reduced to a simple stem, so that “book” and “books” (or German “Buch” and “Bücher”) match
 2. **Links:** posts that link to the same targets (ignoring “www.,” query strings, and fragments) likely cover the same things—for a book blog, two posts linking to the same book
 
-Each signal is a [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) vector, compared by cosine similarity. Rare features count more than common ones, and features that all posts share—site-wide boilerplate, a link on every post, a catch-all category—don’t count at all. The score is the weighted sum of both similarities, between 0 and 1; ties go to the newer post.
+Each signal is a [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) vector, compared by cosine similarity. Rare features count more than common ones, and features that all posts share—site-wide boilerplate, a link on every post, a catch-all category—don’t count at all. Neither do features in more than 500 posts, which, on large sites, say little but would slow down the comparison considerably. The score is the weighted sum of both similarities, between 0 and 1; ties go to the newer post.
 
 Stopwords and stems depend on the language. With `language` set to `'auto'`, ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are.
 
-Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in the background (WP-Cron) a minute after a post is published, updated, unpublished, or deleted, or after a published post’s categories or tags change, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them. When showing the list, it checks again that each related post is still published.
+Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in the background (WP-Cron) a minute after a post is published, unpublished, or deleted, after a published post’s title, content, date, or password changes, or after its categories or tags change, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
 
 Uninstalling the plugin removes its post meta, option, and scheduled events.
+
+### Performance
+
+Visitors don’t notice the size of a site: Showing the list takes a few database queries, and in-content links take lookups only for subjects the post’s text mentions.
+
+The rebuild does notice it, as it compares all posts with each other for the list. With posts of around 600 words, measured with `composer bench` (see below) on a fast computer—servers, especially shared hosting, may be slower:
+
+| Posts | Time | Memory |
+| --- | --- | --- |
+| 1,000 | 2 seconds | 70 MB |
+| 5,000 | 10 seconds | 280 MB |
+| 10,000 | 25 seconds | 520 MB |
+
+Up to a few thousand posts, the rebuild fits into the 256 MB that WordPress allows by default. Beyond about 4,000 posts, it may need more: Raise `WP_MAX_MEMORY_LIMIT` (in wp-config.php), or the limit for ntrnllnk alone, via the `ntrnllnk_memory_limit` filter. If PHP’s time limit (`max_execution_time`) is low, a rebuild may also run out of time; then, it doesn’t update related posts, and the previous ones stay. On large sites, it helps to run WP-Cron [via the system’s cron](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/) rather than on page views.
+
+Without the list, the rebuild has hardly anything to do: With `count` set to `0`, it only finds the subjects for in-content links, which, for 10,000 posts, takes about a second and less than 100 MB. In-content links, in turn, cost little, so turning them off doesn’t make the rebuild noticeably faster.
 
 ## Development
 
@@ -98,9 +116,21 @@ composer install   # Also enables the pre-commit hook
 composer lint      # WordPress Coding Standards, PHP compatibility, PHPStan
 composer test      # PHPUnit
 composer build     # Plugin files into dist/
+composer bench     # Time and memory of a rebuild
 ```
 
 The classes in `src/` other than `Plugin.php` don’t call WordPress. `Plugin.php` connects them to WordPress; its tests simulate WordPress with [Brain Monkey](https://github.com/Brain-WP/BrainMonkey).
+
+### Benchmarking
+
+`composer bench` measures a rebuild outside WordPress: how long building documents, ranking, and finding phrases take, and how much memory they need. It uses 2,000 generated posts by default; set another number with `composer bench -- --posts=10000`, or use a site’s posts, exported with WP-CLI (`benchmark.json` is ignored by Git):
+
+```shell
+wp post list --post_status=publish --fields=ID,post_title,post_content,post_date --format=json > benchmark.json
+composer bench -- --input=benchmark.json --compare
+```
+
+`--compare` also ranks without skipping features in many posts and reports how many related posts match; `--frequency-max=1000` tries another limit than 500; `--count=0` measures a site without the list. Unlike a real rebuild, the benchmark neither strips shortcodes nor uses categories and tags.
 
 ### Building
 

@@ -12,7 +12,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Connects the ranker to WordPress: rebuilds related posts in the background and outputs them
  *
- * Related posts are computed for all published posts at once, because a new post can change every other post’s list. Rebuilds run via WP-Cron, a minute after a change (so that bulk edits cause one rebuild) and daily as a safety net.
+ * Related posts are computed for all published posts at once, because a new post can change every other post’s list. Rebuilds run via WP-Cron, a minute after a change (so that bulk edits cause one rebuild) and daily as a safety net. They load posts in batches, so that large sites fit into memory.
  */
 final class Plugin {
 
@@ -24,7 +24,24 @@ final class Plugin {
 
 	public const HOOK_REBUILD_DAILY = 'ntrnllnk_rebuild_daily';
 
+	public const TRANSIENT_LOCK = 'ntrnllnk_rebuild_lock';
+
 	private const DELAY_REBUILD = MINUTE_IN_SECONDS;
+
+	/**
+	 * Time after which a lock counts as abandoned, as by a rebuild that ran out of memory or time
+	 */
+	private const DURATION_LOCK = 15 * MINUTE_IN_SECONDS;
+
+	/**
+	 * Number of posts loaded at once
+	 */
+	private const COUNT_BATCH = 200;
+
+	/**
+	 * Post fields that, when changed on a published post, change related posts
+	 */
+	private const FIELDS_RELEVANT = [ 'post_content', 'post_date', 'post_password', 'post_title', 'post_type' ];
 
 	/**
 	 * Main plugin file
@@ -56,6 +73,7 @@ final class Plugin {
 		add_action( self::HOOK_REBUILD, [ self::class, 'rebuild' ] );
 		add_action( self::HOOK_REBUILD_DAILY, [ self::class, 'rebuild' ] );
 		add_action( 'transition_post_status', [ self::class, 'on_transition_post_status' ], 10, 3 );
+		add_action( 'post_updated', [ self::class, 'on_post_updated' ], 10, 3 );
 		add_action( 'before_delete_post', [ self::class, 'on_before_delete_post' ], 10, 2 );
 		add_action( 'set_object_terms', [ self::class, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'delete_term', [ self::class, 'on_delete_term' ], 10, 5 );
@@ -135,15 +153,39 @@ final class Plugin {
 	}
 
 	/**
-	 * Schedules a rebuild when a post enters, leaves, or changes while in the published state
+	 * Schedules a rebuild when a post enters or leaves the published state
+	 *
+	 * Changes while published are left to `on_post_updated()`, which can tell whether they matter.
 	 *
 	 * @param string   $status_new New status.
 	 * @param string   $status_old Old status.
 	 * @param \WP_Post $post       Post.
 	 */
 	public static function on_transition_post_status( string $status_new, string $status_old, \WP_Post $post ): void {
-		if ( ( 'publish' === $status_new || 'publish' === $status_old ) && self::is_enabled( $post ) ) {
+		if ( ( 'publish' === $status_new ) !== ( 'publish' === $status_old ) && self::is_enabled( $post ) ) {
 			self::schedule_rebuild();
+		}
+	}
+
+	/**
+	 * Schedules a rebuild when a published post changes in a way that affects related posts
+	 *
+	 * @param int      $post_id     Post ID.
+	 * @param \WP_Post $post_after  Post after the update.
+	 * @param \WP_Post $post_before Post before the update.
+	 */
+	public static function on_post_updated( int $post_id, \WP_Post $post_after, \WP_Post $post_before ): void {
+		if ( 'publish' !== $post_after->post_status || 'publish' !== $post_before->post_status ) {
+			return;
+		}
+		if ( ! self::is_enabled( $post_after ) && ! self::is_enabled( $post_before ) ) {
+			return;
+		}
+		foreach ( self::FIELDS_RELEVANT as $field ) {
+			if ( $post_after->$field !== $post_before->$field ) {
+				self::schedule_rebuild();
+				return;
+			}
 		}
 	}
 
@@ -206,48 +248,90 @@ final class Plugin {
 	}
 
 	/**
-	 * Recomputes and stores the related posts of all published posts
+	 * Recomputes and stores the related posts of all published posts, unless another rebuild is running, in which case it reschedules
 	 */
 	public static function rebuild(): void {
+		if ( get_transient( self::TRANSIENT_LOCK ) ) {
+			self::schedule_rebuild();
+			return;
+		}
+		set_transient( self::TRANSIENT_LOCK, true, self::DURATION_LOCK );
+		try {
+			self::build();
+		} finally {
+			delete_transient( self::TRANSIENT_LOCK );
+		}
+	}
+
+	/**
+	 * Recomputes and stores the related posts of all published posts
+	 */
+	private static function build(): void {
+		wp_raise_memory_limit( 'ntrnllnk' );
+
 		$settings = self::settings();
-		$posts    = get_posts(
+		$ids      = get_posts(
 			[
 				'post_type'        => $settings['post_types'],
 				'post_status'      => 'publish',
 				'has_password'     => false,
+				'fields'           => 'ids',
 				'posts_per_page'   => -1,
 				'suppress_filters' => true,
 			]
 		);
 
-		$terms         = self::terms( $posts, $settings['post_types'] );
+		// Without a list, only phrases are needed, which saves most of the work
+		$rank = $settings['count'] > 0;
+
+		// @@ Reduce documents’ memory (about 30 KB per post) for sites beyond some 5,000 posts
+		$taxonomies    = self::taxonomies( $settings['post_types'] );
 		$language_site = substr( get_locale(), 0, 2 );
 		$tokenizers    = [];
 		$url_base      = home_url();
 		$documents     = [];
-		$texts         = [];
-		foreach ( $posts as $post ) {
-			$content            = strip_shortcodes( $post->post_content );
-			$texts[ $post->ID ] = [
-				'title' => Extract::text( $post->post_title ),
-				'text'  => Extract::text( $content ),
-			];
-			$language           = 'auto' === $settings['language'] ? Language::detect( Extract::text( $content ), $language_site ) : $settings['language'];
-
-			$tokenizers[ $language ] ??= new Tokenizer( $language );
-			$documents[]               = Document::from_post(
-				$post->ID,
-				$post->post_title,
-				$content,
-				$terms[ $post->ID ] ?? [],
-				(int) get_post_timestamp( $post ),
-				$tokenizers[ $language ],
-				$url_base
+		$mentions      = [];
+		foreach ( array_chunk( $ids, self::COUNT_BATCH ) as $ids_batch ) {
+			// Uncached, so that posts and their content do not pile up in the object cache
+			$posts = get_posts(
+				[
+					'post__in'         => $ids_batch,
+					'post_type'        => $settings['post_types'],
+					'posts_per_page'   => -1,
+					'cache_results'    => false,
+					'suppress_filters' => true,
+				]
 			);
-		}
+			if ( $rank ) {
+				update_object_term_cache( $ids_batch, $settings['post_types'] );
+			}
 
-		$related = ( new Ranker( $settings['weights'], $settings['score_min'] ) )->related( $documents, $settings['count'] );
-		update_option( self::OPTION_PHRASES, Phrases::extract( $texts ), $settings['links_inline'] );
+			foreach ( $posts as $post ) {
+				$content               = strip_shortcodes( $post->post_content );
+				$text                  = Extract::text( $content );
+				$mentions[ $post->ID ] = Phrases::mentions( Extract::text( $post->post_title ), $text );
+				if ( ! $rank ) {
+					continue;
+				}
+				$language                  = 'auto' === $settings['language'] ? Language::detect( $text, $language_site ) : $settings['language'];
+				$tokenizers[ $language ] ??= new Tokenizer( $language );
+				$documents[]               = Document::from_post(
+					$post->ID,
+					$post->post_title,
+					$content,
+					self::terms( $post, $taxonomies ),
+					(int) get_post_timestamp( $post ),
+					$tokenizers[ $language ],
+					$url_base
+				);
+			}
+		}//end foreach
+
+		$related = $rank ? ( new Ranker( $settings['weights'], $settings['score_min'] ) )->related( $documents, $settings['count'] ) : [];
+		unset( $documents );
+		update_option( self::OPTION_PHRASES, Phrases::extract( $mentions ), $settings['links_inline'] );
+		// `update_option()` changes autoloading only along with the value
+		wp_set_option_autoload( self::OPTION_PHRASES, $settings['links_inline'] );
 
 		$ids_stale = get_posts(
 			[
@@ -264,9 +348,11 @@ final class Plugin {
 				delete_post_meta( $id, self::META_KEY );
 			}
 		}
-		foreach ( $related as $id => $scores ) {
-			if ( $scores ) {
-				update_post_meta( $id, self::META_KEY, array_keys( $scores ) );
+		// Primed in batches, so that `update_post_meta()` finds unchanged values without a query per post
+		foreach ( array_chunk( array_keys( array_filter( $related ) ), self::COUNT_BATCH ) as $ids_batch ) {
+			update_meta_cache( 'post', $ids_batch );
+			foreach ( $ids_batch as $id ) {
+				update_post_meta( $id, self::META_KEY, array_keys( $related[ $id ] ) );
 			}
 		}
 	}
@@ -307,7 +393,10 @@ final class Plugin {
 	 */
 	public static function html( int $id ): string {
 		$settings = self::settings();
-		$ids      = get_post_meta( $id, self::META_KEY, true );
+		if ( $settings['count'] < 1 ) {
+			return '';
+		}
+		$ids = get_post_meta( $id, self::META_KEY, true );
 		if ( ! is_array( $ids ) || ! $ids ) {
 			return '';
 		}
@@ -374,6 +463,8 @@ final class Plugin {
 		$phrases = apply_filters( 'ntrnllnk_phrases', (array) get_option( self::OPTION_PHRASES, [] ), $id );
 		$phrases = array_diff_key( $phrases, array_flip( $settings['links_inline_exclude_phrases'] ) );
 		$phrases = array_filter( $phrases, fn( $id_target ): bool => (int) $id_target !== $id );
+		// Only phrases the content mentions, so that the work below depends on the post, not on the site
+		$phrases = Linker::mentioned( $content, $phrases );
 		if ( ! $phrases ) {
 			return $content;
 		}
@@ -422,29 +513,37 @@ final class Plugin {
 	}
 
 	/**
-	 * Returns the IDs of the terms of public taxonomies, per post
+	 * Returns the public taxonomies of post types
 	 *
-	 * Reads from the term cache, which `get_posts()` has filled.
-	 *
-	 * @param \WP_Post[] $posts      Posts.
-	 * @param string[]   $post_types Post types.
-	 * @return array<int, int[]>
+	 * @param string[] $post_types Post types.
+	 * @return string[]
 	 */
-	private static function terms( array $posts, array $post_types ): array {
-		$taxonomies    = get_object_taxonomies( $post_types, 'objects' );
-		$taxonomies    = array_keys( array_filter( $taxonomies, fn( \WP_Taxonomy $taxonomy ): bool => $taxonomy->public ) );
-		$terms_by_post = [];
-		foreach ( $posts as $post ) {
-			foreach ( $taxonomies as $taxonomy ) {
-				$terms = get_the_terms( $post, $taxonomy );
-				if ( is_array( $terms ) ) {
-					foreach ( $terms as $term ) {
-						$terms_by_post[ $post->ID ][] = $term->term_id;
-					}
+	private static function taxonomies( array $post_types ): array {
+		$taxonomies = get_object_taxonomies( $post_types, 'objects' );
+
+		return array_keys( array_filter( $taxonomies, fn( \WP_Taxonomy $taxonomy ): bool => $taxonomy->public ) );
+	}
+
+	/**
+	 * Returns the IDs of a post’s terms in the given taxonomies
+	 *
+	 * Reads from the term cache, which `build()` fills per batch.
+	 *
+	 * @param \WP_Post $post       Post.
+	 * @param string[] $taxonomies Taxonomies.
+	 * @return int[]
+	 */
+	private static function terms( \WP_Post $post, array $taxonomies ): array {
+		$ids = [];
+		foreach ( $taxonomies as $taxonomy ) {
+			$terms = get_the_terms( $post, $taxonomy );
+			if ( is_array( $terms ) ) {
+				foreach ( $terms as $term ) {
+					$ids[] = $term->term_id;
 				}
 			}
 		}
 
-		return $terms_by_post;
+		return $ids;
 	}
 }

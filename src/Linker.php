@@ -79,6 +79,20 @@ final class Linker {
 	}
 
 	/**
+	 * Returns the phrases that HTML contains, as a quick check before linking
+	 *
+	 * Text in HTML is escaped, so phrases are, too; this may keep phrases that `link()` will not link (like those in attributes), but never drops one it would link.
+	 *
+	 * @template T
+	 * @param string           $html    HTML.
+	 * @param array<string, T> $phrases Phrases, with any values.
+	 * @return array<string, T>
+	 */
+	public static function mentioned( string $html, array $phrases ): array {
+		return array_filter( $phrases, fn( $phrase ): bool => str_contains( $html, htmlspecialchars( (string) $phrase, ENT_NOQUOTES, 'UTF-8' ) ), ARRAY_FILTER_USE_KEY );
+	}
+
+	/**
 	 * Links the first phrase mention in a text node, if any, and removes its target
 	 *
 	 * @param string                $text Text node (HTML-escaped).

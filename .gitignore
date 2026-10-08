@@ -1,4 +1,5 @@
 .phpunit.cache/
 dist/
 vendor/
+benchmark.json
 .DS_Store

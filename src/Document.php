@@ -25,6 +25,13 @@ final class Document {
 	private const WEIGHT_HEADING = 1;
 
 	/**
+	 * Words seen so far, shared across documents, so that each word’s string is in memory once, not once per document
+	 *
+	 * @var array<string, string>
+	 */
+	private static array $strings = [];
+
+	/**
 	 * Creates a document
 	 *
 	 * @param int                $id    Post ID.
@@ -70,6 +77,7 @@ final class Document {
 	 */
 	private static function count( array &$words, array $tokens, int $weight ): void {
 		foreach ( $tokens as $token ) {
+			$token           = self::$strings[ $token ] ??= $token;
 			$words[ $token ] = ( $words[ $token ] ?? 0 ) + $weight;
 		}
 	}

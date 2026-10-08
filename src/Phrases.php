@@ -28,26 +28,43 @@ final class Phrases {
 	/**
 	 * Returns the phrases that identify posts, each with its post’s ID
 	 *
-	 * @param array<int, array{title: string, text: string}> $posts Posts by ID, with title and plain text.
+	 * @param array<int, array<string, int>> $mentions Posts by ID, with their title’s candidates and how often their text mentions them (see `mentions()`).
 	 * @return array<string, int>
 	 */
-	public static function extract( array $posts ): array {
+	public static function extract( array $mentions ): array {
 		$owners = [];
-		foreach ( $posts as $id => $post ) {
-			foreach ( self::candidates( $post['title'] ) as $phrase ) {
-				$owners[ $phrase ][ $id ] = true;
+		foreach ( $mentions as $id => $counts ) {
+			foreach ( $counts as $phrase => $count ) {
+				$owners[ $phrase ][ $id ] = $count;
 			}
 		}
 
 		$phrases = [];
-		foreach ( $owners as $phrase => $ids ) {
-			$id = (int) array_key_first( $ids );
-			if ( 1 === count( $ids ) && self::count_mentions( (string) $phrase, $posts[ $id ]['text'] ) >= self::COUNT_MENTIONS_MIN ) {
-				$phrases[ (string) $phrase ] = $id;
+		foreach ( $owners as $phrase => $counts ) {
+			if ( 1 === count( $counts ) && reset( $counts ) >= self::COUNT_MENTIONS_MIN ) {
+				$phrases[ (string) $phrase ] = (int) array_key_first( $counts );
 			}
 		}
 
 		return $phrases;
+	}
+
+	/**
+	 * Returns the candidates of a title and how often a text mentions each
+	 *
+	 * Lets callers keep counts instead of texts, so that all posts’ texts need not be in memory at once.
+	 *
+	 * @param string $title Plain-text title.
+	 * @param string $text  Plain text.
+	 * @return array<string, int>
+	 */
+	public static function mentions( string $title, string $text ): array {
+		$counts = [];
+		foreach ( self::candidates( $title ) as $phrase ) {
+			$counts[ $phrase ] = self::count_mentions( $phrase, $text );
+		}
+
+		return $counts;
 	}
 
 	/**

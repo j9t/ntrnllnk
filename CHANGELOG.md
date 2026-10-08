@@ -17,3 +17,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Added optional in-content links (`links_inline`, `links_inline_max`), linking the first mention of another post’s subject, at most once per paragraph and never twice to the same post
 * Added `links_inline_exclude_phrases`, `links_inline_exclude_posts`, and the `ntrnllnk_phrases` filter to control in-content links
 * Added a German translation
+* Added background rebuilds that scale to large sites: posts load in batches, ranking skips words and links in more than 500 posts, rebuilds don’t overlap, and edits trigger them only when they affect related posts
+* Added `count` `0` to turn off the list, which also skips ranking in rebuilds, for sites that want only in-content links
+* Added `composer bench`, which measures the time and memory of a rebuild, on generated or exported posts

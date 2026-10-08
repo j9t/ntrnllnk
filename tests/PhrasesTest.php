@@ -51,17 +51,18 @@ final class PhrasesTest extends TestCase {
 		$this->assertSame( [], Phrases::candidates( 'Kluftinger in der richtigen Reihenfolge' ) );
 	}
 
+	public function test_mentions_counts_mentions_of_title_candidates(): void {
+		$this->assertSame(
+			[ 'Agatha Christie' => 2 ],
+			Phrases::mentions( 'Agatha Christie in der richtigen Reihenfolge', 'Agatha Christie schrieb viel. Agatha Christies Detektive …' )
+		);
+	}
+
 	public function test_extract_maps_topical_phrases_to_their_posts(): void {
 		$phrases = Phrases::extract(
 			[
-				1 => [
-					'title' => 'Agatha Christie in der richtigen Reihenfolge',
-					'text'  => 'Agatha Christie schrieb viel. Agatha Christies Detektive … Agatha Christie starb 1976.',
-				],
-				2 => [
-					'title' => 'Die besten Krimis',
-					'text'  => 'Auch Agatha Christie gehört dazu.',
-				],
+				1 => Phrases::mentions( 'Agatha Christie in der richtigen Reihenfolge', 'Agatha Christie schrieb viel. Agatha Christies Detektive … Agatha Christie starb 1976.' ),
+				2 => Phrases::mentions( 'Die besten Krimis', 'Auch Agatha Christie gehört dazu.' ),
 			]
 		);
 
@@ -69,30 +70,15 @@ final class PhrasesTest extends TestCase {
 	}
 
 	public function test_extract_drops_phrases_mentioned_too_rarely(): void {
-		$phrases = Phrases::extract(
-			[
-				1 => [
-					'title' => 'Zehn Tipps für Krimis',
-					'text'  => 'Hier sind zehn Tipps.',
-				],
-			]
-		);
-
-		$this->assertSame( [], $phrases );
+		$this->assertSame( [], Phrases::extract( [ 1 => Phrases::mentions( 'Zehn Tipps für Krimis', 'Hier sind zehn Tipps.' ) ] ) );
 	}
 
 	public function test_extract_drops_phrases_in_several_titles(): void {
 		$text    = 'Harry Potter, Harry Potter, Harry Potter';
 		$phrases = Phrases::extract(
 			[
-				1 => [
-					'title' => 'Bücher wie Harry Potter',
-					'text'  => $text,
-				],
-				2 => [
-					'title' => 'Harry Potter in der richtigen Reihenfolge',
-					'text'  => $text,
-				],
+				1 => Phrases::mentions( 'Bücher wie Harry Potter', $text ),
+				2 => Phrases::mentions( 'Harry Potter in der richtigen Reihenfolge', $text ),
 			]
 		);
 

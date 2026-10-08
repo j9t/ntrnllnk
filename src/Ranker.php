@@ -15,6 +15,8 @@ defined( 'ABSPATH' ) || exit;
  * Each signal (words, links) is a TF-IDF vector compared by cosine similarity; the score is the weighted sum, between 0 and 1. Features that all documents share carry no weight, so site-wide boilerplate, ubiquitous links, and catch-all categories are ignored.
  *
  * Terms count as words rather than as a signal of their own: a post with a single category would otherwise match every post in it fully.
+ *
+ * Every pair of documents that share a feature gets compared, so features in many documents cost the most while saying the least. Features in more than a fixed number of documents are skipped, which keeps ranking time from growing quadratically on large sites.
  */
 final class Ranker {
 
@@ -25,6 +27,11 @@ final class Ranker {
 		'words' => 0.6,
 		'links' => 0.4,
 	];
+
+	/**
+	 * Maximum number of documents a feature may be in
+	 */
+	public const FREQUENCY_MAX = 500;
 
 	/**
 	 * Weight of a term, as a count of words (like a title word)
@@ -41,10 +48,11 @@ final class Ranker {
 	/**
 	 * Creates a ranker
 	 *
-	 * @param array<string, float> $weights   Weights per signal (`words`, `links`); missing ones use the defaults.
-	 * @param float                $score_min Minimum score for a document to count as related.
+	 * @param array<string, float> $weights       Weights per signal (`words`, `links`); missing ones use the defaults.
+	 * @param float                $score_min     Minimum score for a document to count as related.
+	 * @param int                  $frequency_max Maximum number of documents a feature may be in; features in more are skipped.
 	 */
-	public function __construct( array $weights = [], private float $score_min = 0.02 ) {
+	public function __construct( array $weights = [], private float $score_min = 0.02, private int $frequency_max = self::FREQUENCY_MAX ) {
 		$this->weights = array_merge( self::WEIGHTS, array_intersect_key( $weights, self::WEIGHTS ) );
 	}
 
@@ -56,82 +64,70 @@ final class Ranker {
 	 * @return array<int, array<int, float>> Document ID => related document IDs and scores, best first.
 	 */
 	public function related( array $documents, int $count ): array {
-		$scores = [];
-		$times  = [];
+		$times   = [];
+		$signals = [];
 		foreach ( $documents as $document ) {
-			$scores[ $document->id ] = [];
-			$times[ $document->id ]  = $document->time;
+			$times[ $document->id ] = $document->time;
+		}
+		foreach ( $this->weights as $signal => $weight ) {
+			$signals[] = [ ...$this->index( $documents, $signal ), $weight ];
 		}
 
-		$bags_words = [];
-		$bags_links = [];
-		foreach ( $documents as $document ) {
-			// Words never contain a colon, so prefixed terms cannot collide with them
-			$bags_words[ $document->id ] = $document->words + array_fill_keys( array_map( fn( int $term ): string => 'term:' . $term, $document->terms ), self::WEIGHT_TERM );
-			$bags_links[ $document->id ] = array_fill_keys( $document->links, 1 );
-		}
-		$this->add_similarities( $scores, self::vectors( $bags_words ), $this->weights['words'] );
-		$this->add_similarities( $scores, self::vectors( $bags_links ), $this->weights['links'] );
-
+		// Scored one document at a time, so that memory grows with the number of documents, not of pairs
 		$related = [];
-		foreach ( $scores as $id => $candidates ) {
-			$candidates = array_filter( $candidates, fn( float $score ): bool => $score >= $this->score_min );
+		foreach ( $documents as $document ) {
+			$scores = [];
+			foreach ( $signals as [ $features, $postings, $weight ] ) {
+				foreach ( $features[ $document->id ] as $feature ) {
+					$value = $weight * $postings[ $feature ][ $document->id ];
+					foreach ( $postings[ $feature ] as $id_other => $value_other ) {
+						$scores[ $id_other ] = ( $scores[ $id_other ] ?? 0.0 ) + $value * $value_other;
+					}
+				}
+			}
+			unset( $scores[ $document->id ] );
+
+			$scores = array_filter( $scores, fn( float $score ): bool => $score >= $this->score_min );
+			if ( $count > 0 && count( $scores ) > $count ) {
+				// Narrowed with a fast sort to the scores that can make the cut, so that the slow sort below gets few
+				arsort( $scores );
+				$score_cut = round( (float) array_values( $scores )[ $count - 1 ], 6 );
+				$scores    = array_filter( $scores, fn( float $score ): bool => round( $score, 6 ) >= $score_cut );
+			}
 			uksort(
-				$candidates,
+				$scores,
 				// Rounding keeps float noise from overriding the tie-breakers (newer first, then lower ID)
-				fn( int $a, int $b ): int => [ round( $candidates[ $b ], 6 ), $times[ $b ], $a ] <=> [ round( $candidates[ $a ], 6 ), $times[ $a ], $b ]
+				fn( int $a, int $b ): int => [ round( $scores[ $b ], 6 ), $times[ $b ], $a ] <=> [ round( $scores[ $a ], 6 ), $times[ $a ], $b ]
 			);
-			$related[ $id ] = array_slice( $candidates, 0, $count, true );
-		}
+			$related[ $document->id ] = array_slice( $scores, 0, $count, true );
+		}//end foreach
 
 		return $related;
 	}
 
 	/**
-	 * Adds the weighted cosine similarities of all vector pairs to the scores
+	 * Returns a signal’s TF-IDF unit vectors, as the features of each document and the documents of each feature, with the feature’s value in them
 	 *
-	 * @param array<int, array<int, float>>        $scores  Scores per document pair.
-	 * @param array<int, array<int|string, float>> $vectors Unit vectors per document.
-	 * @param float                                $weight  Weight of the signal.
-	 */
-	private function add_similarities( array &$scores, array $vectors, float $weight ): void {
-		$postings = [];
-		foreach ( $vectors as $id => $vector ) {
-			foreach ( $vector as $feature => $value ) {
-				$postings[ $feature ][ $id ] = $value;
-			}
-		}
-
-		foreach ( $vectors as $id => $vector ) {
-			foreach ( $vector as $feature => $value ) {
-				foreach ( $postings[ $feature ] as $id_other => $value_other ) {
-					if ( $id_other !== $id ) {
-						$scores[ $id ][ $id_other ] = ( $scores[ $id ][ $id_other ] ?? 0.0 ) + $weight * $value * $value_other;
-					}
-				}
-			}
-		}
-	}
-
-	/**
-	 * Returns TF-IDF unit vectors, keeping only features that occur in more than one document
+	 * Keeps only features that occur in more than one document and in no more than the maximum; skipped features still count toward the norm, so that scores keep their scale.
 	 *
-	 * @param array<int, array<int|string, int>> $bags Feature counts per document.
-	 * @return array<int, array<int|string, float>>
+	 * @param Document[] $documents Documents.
+	 * @param string     $signal    Signal (`words`, `links`).
+	 * @return array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>}
 	 */
-	private static function vectors( array $bags ): array {
-		$count_documents = count( $bags );
-		$frequencies     = [];
-		foreach ( $bags as $bag ) {
-			foreach ( $bag as $feature => $_ ) {
+	private function index( array $documents, string $signal ): array {
+		$frequencies = [];
+		foreach ( $documents as $document ) {
+			foreach ( self::bag( $document, $signal ) as $feature => $_ ) {
 				$frequencies[ $feature ] = ( $frequencies[ $feature ] ?? 0 ) + 1;
 			}
 		}
 
-		$vectors = [];
-		foreach ( $bags as $id => $bag ) {
+		$count_documents = count( $documents );
+		$features        = [];
+		$postings        = [];
+		foreach ( $documents as $document ) {
 			$vector = [];
-			foreach ( $bag as $feature => $count ) {
+			foreach ( self::bag( $document, $signal ) as $feature => $count ) {
 				$value = ( 1 + log( $count ) ) * log( $count_documents / $frequencies[ $feature ] );
 				if ( $value > 0 ) {
 					$vector[ $feature ] = $value;
@@ -139,14 +135,31 @@ final class Ranker {
 			}
 			$norm = sqrt( array_sum( array_map( fn( float $value ): float => $value * $value, $vector ) ) );
 
-			$vectors[ $id ] = [];
+			$features[ $document->id ] = [];
 			foreach ( $vector as $feature => $value ) {
-				if ( $frequencies[ $feature ] > 1 ) {
-					$vectors[ $id ][ $feature ] = $value / $norm;
+				if ( $frequencies[ $feature ] > 1 && $frequencies[ $feature ] <= $this->frequency_max ) {
+					$features[ $document->id ][]           = $feature;
+					$postings[ $feature ][ $document->id ] = $value / $norm;
 				}
 			}
 		}
 
-		return $vectors;
+		return [ $features, $postings ];
+	}
+
+	/**
+	 * Returns a document’s feature counts for a signal
+	 *
+	 * @param Document $document Document.
+	 * @param string   $signal   Signal (`words`, `links`).
+	 * @return array<int|string, int>
+	 */
+	private static function bag( Document $document, string $signal ): array {
+		if ( 'links' === $signal ) {
+			return array_fill_keys( $document->links, 1 );
+		}
+
+		// Words never contain a colon, so prefixed terms cannot collide with them
+		return $document->words + array_fill_keys( array_map( fn( int $term ): string => 'term:' . $term, $document->terms ), self::WEIGHT_TERM );
 	}
 }
