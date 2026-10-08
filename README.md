@@ -14,7 +14,18 @@ ntrnllnk appends its list to the content of single posts:
 <section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="…">…</a></li>…</ul></section>
 ```
 
-It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it.
+It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it. To change the markup, use the `ntrnllnk_html` filter, which receives the HTML, the related posts, and the ID of the post they relate to.
+
+### Placement
+
+By default, the list follows the content, as part of it (`placement` `'auto'`). Other plugins may append things to the content, too, like ratings or share buttons; `priority` decides the order: the lower, the earlier ntrnllnk adds its list, and the further up it shows. (WordPress’s `the_content` filter runs in order of priority; ntrnllnk uses 20.)
+
+To place the list yourself, set `placement` to `'manual'`, and use either
+
+* the `[ntrnllnk]` shortcode, in a post’s content, or
+* `ntrnllnk_render()`, in a theme template; it outputs the list of the current post, or of the post whose ID it receives.
+
+The shortcode also works with automatic placement: ntrnllnk then doesn’t append the list to that post.
 
 ### Settings
 
@@ -26,8 +37,9 @@ add_filter(
 	fn( array $settings ): array => array_merge(
 		$settings,
 		[
-			'count'   => 3,
-			'heading' => 'Related posts',
+			'count'    => 3,
+			'heading'  => 'Related posts',
+			'priority' => 8,
 		]
 	)
 );
@@ -38,7 +50,10 @@ add_filter(
 | `post_types` | `['post']` | Post types to relate and show related posts for |
 | `count` | `5` | Maximum number of related posts |
 | `heading` | “Further reading” (translated) | Heading of the list |
-| `heading_level` | `2` | Heading level (2–6) |
+| `heading_level` | `2` | Heading level (2–6), or `'auto'` for the highest level in the post’s content (or 2 without headings), so that the list sits at the level of the content’s top sections |
+| `urls` | `'absolute'` | `'absolute'` for full URLs, which work wherever the content goes (feeds, REST API, email), or `'relative'` for root-relative URLs (`/…`) |
+| `placement` | `'auto'` | `'auto'` to append the list to the content, `'manual'` to place it yourself (see above) |
+| `priority` | `20` | With automatic placement, when the list gets appended to the content, relative to other plugins (see above) |
 | `language` | `'auto'` | Language of the content: `'auto'` detects it per post, `'de'` or `'en'` sets it for all posts |
 | `weights` | `['words' => 0.6, 'links' => 0.4]` | Weights of the signals (see below) |
 | `score_min` | `0.02` | Minimum score (0–1) for a post to count as related; posts with fewer matches show fewer related posts, or none |

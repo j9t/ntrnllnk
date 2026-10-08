@@ -35,6 +35,18 @@ final class ExtractTest extends TestCase {
 		$this->assertSame( [ 'The Classic', 'In a Hurry' ], Extract::headings( $html ) );
 	}
 
+	public function test_heading_level_top_returns_highest_level(): void {
+		$this->assertSame( 2, Extract::heading_level_top( '<h3>Book</h3><h2>Section</h2><h4>Detail</h4>' ) );
+	}
+
+	public function test_heading_level_top_returns_level_of_content_starting_lower(): void {
+		$this->assertSame( 3, Extract::heading_level_top( '<p>Intro</p><h3 class="wp-block-heading">Book</h3><h5>Detail</h5>' ) );
+	}
+
+	public function test_heading_level_top_returns_null_without_headings(): void {
+		$this->assertNull( Extract::heading_level_top( '<p>Text with <header>no headings</header></p>' ) );
+	}
+
 	public function test_links_returns_unique_normalized_targets(): void {
 		$html = '<a href="https://www.example.com/books/3499012464/?ref=x"><img src="cover.jpg"></a>'
 			. '<a href="https://www.example.com/books/3499012464/">Title</a>'

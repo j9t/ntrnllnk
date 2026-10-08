@@ -48,6 +48,17 @@ final class Extract {
 	}
 
 	/**
+	 * Returns the highest heading level (the lowest number), or null if there are no headings
+	 *
+	 * @param string $html HTML.
+	 */
+	public static function heading_level_top( string $html ): ?int {
+		preg_match_all( '#<h([1-6])\b#i', $html, $matches );
+
+		return $matches[1] ? (int) min( $matches[1] ) : null;
+	}
+
+	/**
 	 * Returns the unique, normalized targets of all links
 	 *
 	 * Root-relative targets are resolved against `$url_base`, if given; other relative targets are skipped.
