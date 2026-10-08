@@ -267,6 +267,54 @@ final class PluginTest extends TestCase {
 		);
 	}
 
+	public function test_link_content_skips_excluded_phrases(): void {
+		$this->settings(
+			[
+				'links_inline'                 => true,
+				'links_inline_exclude_phrases' => [ 'Agatha Christie' ],
+			]
+		);
+		$this->view( 7 );
+		Functions\when( 'get_option' )->justReturn(
+			[
+				'Agatha Christie' => 11,
+				'Harry Potter'    => 12,
+			]
+		);
+		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'post__in' => [ 12 ] ] ) )->andReturn( [ $this->post( [ 'ID' => 12 ] ) ] );
+
+		$this->assertSame(
+			'<p>Agatha Christie</p><p><a href="https://example.com/12/">Harry Potter</a></p>',
+			Plugin::link_content( '<p>Agatha Christie</p><p>Harry Potter</p>' )
+		);
+	}
+
+	public function test_link_content_skips_excluded_posts(): void {
+		$this->settings(
+			[
+				'links_inline'               => true,
+				'links_inline_exclude_posts' => [ 7 ],
+			]
+		);
+		$this->view( 7 );
+		Functions\expect( 'get_option' )->never();
+
+		$this->assertSame( '<p>Agatha Christie</p>', Plugin::link_content( '<p>Agatha Christie</p>' ) );
+	}
+
+	public function test_link_content_applies_phrases_filter(): void {
+		$this->settings( [ 'links_inline' => true ] );
+		$this->view( 7 );
+		Functions\when( 'get_option' )->justReturn( [ 'Agatha Christie' => 11 ] );
+		Filters\expectApplied( 'ntrnllnk_phrases' )->once()->with( [ 'Agatha Christie' => 11 ], 7 )->andReturn( [ 'Kluftinger' => 13 ] );
+		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'post__in' => [ 13 ] ] ) )->andReturn( [ $this->post( [ 'ID' => 13 ] ) ] );
+
+		$this->assertSame(
+			'<p>Agatha Christie</p><p><a href="https://example.com/13/">Kluftinger</a></p>',
+			Plugin::link_content( '<p>Agatha Christie</p><p>Kluftinger</p>' )
+		);
+	}
+
 	public function test_link_content_ignores_links_in_list(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );

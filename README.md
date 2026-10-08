@@ -35,7 +35,9 @@ The text never links to the same post twice: ntrnllnk links each post once, and 
 
 What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German), that appear in no other post’s title and that the post’s own text mentions at least three times. Matching is case-sensitive and includes the genitive (“Agatha Christies,” “Agatha Christie’s”).
 
-In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
+In-content links are added when a post is shown, not saved to it, so turning them off removes them all. To keep particular links out instead, exclude phrases with `links_inline_exclude_phrases` or posts with `links_inline_exclude_posts`; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases. All of this applies immediately.
+
+In-content links are off by default for now. This default may change before the first stable release; to keep a particular behavior, set `links_inline` explicitly.
 
 ### Settings
 
@@ -66,6 +68,8 @@ add_filter(
 | `priority` | `20` | With automatic placement, when the list gets appended to the content, relative to other plugins (see above) |
 | `links_inline` | `false` | Whether to link mentions of other posts’ subjects in the text (see above) |
 | `links_inline_max` | `3` | Maximum number of in-content links per post |
+| `links_inline_exclude_phrases` | `[]` | Phrases never to link, e.g., `['Happy End', 'Miss Marple']` |
+| `links_inline_exclude_posts` | `[]` | IDs of posts whose content gets no in-content links, e.g., `[123, 456]` |
 | `language` | `'auto'` | Language of the content: `'auto'` detects it per post, `'de'` or `'en'` sets it for all posts |
 | `weights` | `['words' => 0.6, 'links' => 0.4]` | Weights of the signals (see below) |
 | `score_min` | `0.02` | Minimum score (0–1) for a post to count as related; posts with fewer matches show fewer related posts, or none |

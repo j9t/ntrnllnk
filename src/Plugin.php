@@ -81,28 +81,30 @@ final class Plugin {
 	/**
 	 * Returns the settings, adjustable via the `ntrnllnk_settings` filter
 	 *
-	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, language: string, weights: array<string, float>, score_min: float}
+	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], language: string, weights: array<string, float>, score_min: float}
 	 */
 	public static function settings(): array {
 		$defaults = [
-			'post_types'       => [ 'post' ],
-			'count'            => 5,
-			'heading'          => __( 'Further reading', 'ntrnllnk' ),
-			'heading_level'    => 2,
-			'urls'             => 'absolute',
-			'placement'        => 'auto',
-			'priority'         => 20,
-			'links_inline'     => false,
-			'links_inline_max' => 3,
-			'language'         => 'auto',
-			'weights'          => Ranker::WEIGHTS,
-			'score_min'        => 0.02,
+			'post_types'                   => [ 'post' ],
+			'count'                        => 5,
+			'heading'                      => __( 'Further reading', 'ntrnllnk' ),
+			'heading_level'                => 2,
+			'urls'                         => 'absolute',
+			'placement'                    => 'auto',
+			'priority'                     => 20,
+			'links_inline'                 => false,
+			'links_inline_max'             => 3,
+			'links_inline_exclude_phrases' => [],
+			'links_inline_exclude_posts'   => [],
+			'language'                     => 'auto',
+			'weights'                      => Ranker::WEIGHTS,
+			'score_min'                    => 0.02,
 		];
 
 		/**
 		 * Filters the settings
 		 *
-		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), and `score_min`.
+		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `links_inline_exclude_phrases`, `links_inline_exclude_posts`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), and `score_min`.
 		 */
 		return array_merge( $defaults, apply_filters( 'ntrnllnk_settings', $defaults ) );
 	}
@@ -358,8 +360,20 @@ final class Plugin {
 			return $content;
 		}
 
-		$id      = (int) get_the_ID();
-		$phrases = array_filter( (array) get_option( self::OPTION_PHRASES, [] ), fn( $id_target ): bool => $id_target !== $id );
+		$id = (int) get_the_ID();
+		if ( in_array( $id, array_map( 'intval', $settings['links_inline_exclude_posts'] ), true ) ) {
+			return $content;
+		}
+
+		/**
+		 * Filters the phrases to link in a post’s content
+		 *
+		 * @param array<string, int> $phrases Phrases and the IDs of the posts they link to.
+		 * @param int                $id      ID of the post whose content gets linked.
+		 */
+		$phrases = apply_filters( 'ntrnllnk_phrases', (array) get_option( self::OPTION_PHRASES, [] ), $id );
+		$phrases = array_diff_key( $phrases, array_flip( $settings['links_inline_exclude_phrases'] ) );
+		$phrases = array_filter( $phrases, fn( $id_target ): bool => (int) $id_target !== $id );
 		if ( ! $phrases ) {
 			return $content;
 		}
