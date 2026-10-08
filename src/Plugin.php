@@ -110,14 +110,14 @@ final class Plugin {
 			'urls'                         => 'absolute',
 			'placement'                    => 'auto',
 			'priority'                     => 20,
-			'links_inline'                 => false,
+			'links_inline'                 => true,
 			'links_inline_max'             => 3,
 			'links_inline_exclude_phrases' => [],
 			'links_inline_exclude_posts'   => [],
 			'links_class'                  => false,
 			'language'                     => 'auto',
 			'weights'                      => Ranker::WEIGHTS,
-			'score_min'                    => 0.02,
+			'score_min'                    => 0.04,
 		];
 
 		/**

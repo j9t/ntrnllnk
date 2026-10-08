@@ -157,8 +157,8 @@ final class RankerTest extends TestCase {
 			$this->document( 4, [ 'cooking' ] ),
 		];
 
-		$this->assertSame( [ 2, 3 ], array_keys( ( new Ranker() )->related( $documents, 5 )[1] ) );
-		$this->assertSame( [], ( new Ranker( frequency_max: 2 ) )->related( $documents, 5 )[1] );
+		$this->assertSame( [ 2, 3 ], array_keys( ( new Ranker( score_min: 0 ) )->related( $documents, 5 )[1] ) );
+		$this->assertSame( [], ( new Ranker( score_min: 0, frequency_max: 2 ) )->related( $documents, 5 )[1] );
 	}
 
 	public function test_related_handles_empty_input(): void {

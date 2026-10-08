@@ -52,7 +52,7 @@ final class Ranker {
 	 * @param float                $score_min     Minimum score for a document to count as related.
 	 * @param int                  $frequency_max Maximum number of documents a feature may be in; features in more are skipped.
 	 */
-	public function __construct( array $weights = [], private float $score_min = 0.02, private int $frequency_max = self::FREQUENCY_MAX ) {
+	public function __construct( array $weights = [], private float $score_min = 0.04, private int $frequency_max = self::FREQUENCY_MAX ) {
 		$this->weights = array_merge( self::WEIGHTS, array_intersect_key( $weights, self::WEIGHTS ) );
 	}
 

@@ -186,26 +186,26 @@ final class PluginTest extends TestCase {
 		Plugin::on_delete_term( 5, 9, 'category', null, [] );
 	}
 
-	public function test_register_output_appends_list_by_default(): void {
+	public function test_register_output_appends_list_and_links_content_by_default(): void {
 		Functions\expect( 'add_shortcode' )->once()->with( 'ntrnllnk', [ Plugin::class, 'shortcode' ] );
 		Plugin::register_output();
 
 		$this->assertTrue( has_filter( 'the_content', [ Plugin::class, 'render' ], 20 ) );
-		$this->assertFalse( has_filter( 'the_content', [ Plugin::class, 'link_content' ] ) );
+		$this->assertTrue( has_filter( 'the_content', [ Plugin::class, 'link_content' ], 12 ) );
 	}
 
-	public function test_register_output_follows_placement_priority_and_in_content_links(): void {
+	public function test_register_output_follows_placement_and_in_content_links(): void {
 		$this->settings(
 			[
 				'placement'    => 'manual',
-				'links_inline' => true,
+				'links_inline' => false,
 			]
 		);
 		Functions\when( 'add_shortcode' )->justReturn( true );
 		Plugin::register_output();
 
 		$this->assertFalse( has_filter( 'the_content', [ Plugin::class, 'render' ] ) );
-		$this->assertTrue( has_filter( 'the_content', [ Plugin::class, 'link_content' ], 12 ) );
+		$this->assertFalse( has_filter( 'the_content', [ Plugin::class, 'link_content' ] ) );
 	}
 
 	public function test_register_output_uses_priority(): void {
@@ -475,8 +475,8 @@ final class PluginTest extends TestCase {
 		Functions\expect( 'update_post_meta' )->once()->with( 1, Plugin::META_KEY, [ 2 ] );
 		Functions\expect( 'update_post_meta' )->once()->with( 2, Plugin::META_KEY, [ 1 ] );
 		Functions\expect( 'delete_post_meta' )->once()->with( 3, Plugin::META_KEY );
-		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], false );
-		Functions\expect( 'wp_set_option_autoload' )->once()->with( Plugin::OPTION_PHRASES, false );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], true );
+		Functions\expect( 'wp_set_option_autoload' )->once()->with( Plugin::OPTION_PHRASES, true );
 
 		Plugin::rebuild();
 	}

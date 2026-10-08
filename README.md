@@ -1,8 +1,8 @@
-# ntrnllnk—Internal Linking Plugin for WordPress
+# ntrnllnk—Automatic Internal Linking for WordPress
 
 [![Build status](https://github.com/j9t/ntrnllnk/workflows/Tests/badge.svg)](https://github.com/j9t/ntrnllnk/actions) [![GitHub Sponsors](https://badgen.net/static/Support/Open%20Source/cyan)](https://github.com/sponsors/j9t)
 
-ntrnllnk is a WordPress plugin for internal linking. It finds related posts automatically—without any manual input—and lists them after each post under “Further reading.” Optionally, it also links mentions of other posts’ subjects within the text. It supports German and English content.
+ntrnllnk is a WordPress plugin for automatic internal linking. It finds related posts automatically—without any manual input—and lists them after each post under “Further reading.” It also links mentions of other posts’ subjects within the text. It supports German and English content.
 
 ## Usage
 
@@ -14,7 +14,9 @@ ntrnllnk appends its list to the content of single posts:
 <section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="…">…</a></li>…</ul></section>
 ```
 
-It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it. With `links_class`, in-content links (see below) get the class `ntrnllnk-inline`, to style or track them without touching posts. To change the markup, use the `ntrnllnk_html` filter, which receives the HTML, the related posts, and the ID of the post they relate to.
+The list includes only posts that are related closely enough, as set by `score_min` (see “Scores”), so it may be shorter than `count`. A post without any such posts gets no list at all.
+
+It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it. With `links_class`, in-content links get the class `ntrnllnk-inline`, to style or track them without touching posts. To change the markup, use the `ntrnllnk_html` filter, which receives the HTML, the related posts, and the ID of the post they relate to.
 
 ### Placement
 
@@ -29,17 +31,15 @@ The shortcode also works with automatic placement: ntrnllnk then doesn’t appen
 
 ### In-Content Links
 
-With `links_inline` enabled, ntrnllnk also links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most `links_inline_max` such links per post, and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
+Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most `links_inline_max` such links per post, and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
 
 The text never links to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it, in whatever form (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
 
 What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German), that the post’s own text mentions at least three times. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christies,” “Agatha Christie’s”).
 
-In-content links are added when a post is shown, not saved to it, so turning them off removes them all. To keep particular links out instead, exclude phrases with `links_inline_exclude_phrases` or posts with `links_inline_exclude_posts`; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases. All of this applies immediately.
+In-content links are added when a post is shown, not saved to it, so turning them off (with `links_inline` set to `false`) removes them all. To keep particular links out instead, exclude phrases with `links_inline_exclude_phrases` or posts with `links_inline_exclude_posts`; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases. All of this applies immediately.
 
 To use in-content links without the list, set `count` to `0`; this also saves most of the work in the background (see “Performance”).
-
-In-content links are off by default for now. This default may change before the first stable release; to keep a particular behavior, set `links_inline` explicitly.
 
 ### Settings
 
@@ -66,16 +66,16 @@ add_filter(
 | `heading` | “Further reading” (translated) | Heading of the list |
 | `heading_level` | `2` | Heading level (2–6), or `'auto'` for the highest level in the post’s content (or 2 without headings), so that the list sits at the level of the content’s top sections |
 | `urls` | `'absolute'` | `'absolute'` for full URLs, which work wherever the content goes (feeds, REST API, email), or `'relative'` for root-relative URLs (`/…`) |
-| `placement` | `'auto'` | `'auto'` to append the list to the content, `'manual'` to place it yourself (see above) |
-| `priority` | `20` | With automatic placement, when the list gets appended to the content, relative to other plugins (see above) |
-| `links_inline` | `false` | Whether to link mentions of other posts’ subjects in the text (see above) |
+| `placement` | `'auto'` | `'auto'` to append the list to the content, `'manual'` to place it yourself |
+| `priority` | `20` | With automatic placement, when the list gets appended to the content, relative to other plugins |
+| `links_inline` | `true` | Whether to link mentions of other posts’ subjects in the text |
 | `links_inline_max` | `3` | Maximum number of in-content links per post |
 | `links_inline_exclude_phrases` | `[]` | Phrases never to link, e.g., `['Happy End', 'Miss Marple']` |
 | `links_inline_exclude_posts` | `[]` | IDs of posts whose content gets no in-content links, e.g., `[123, 456]` |
 | `links_class` | `false` | Whether in-content links get the class `ntrnllnk-inline` (links in the list can be selected with `.ntrnllnk a`) |
 | `language` | `'auto'` | Language of the content: `'auto'` detects it per post, `'de'` or `'en'` sets it for all posts |
-| `weights` | `['words' => 0.6, 'links' => 0.4]` | Weights of the signals (see below) |
-| `score_min` | `0.02` | Minimum score (0–1) for a post to count as related; posts with fewer matches show fewer related posts, or none |
+| `weights` | `['words' => 0.6, 'links' => 0.4]` | Weights of the signals |
+| `score_min` | `0.04` | Minimum score (0–1) for a post to count as related; posts with fewer matches show fewer related posts, or no list at all |
 
 ## How It Works
 
@@ -90,7 +90,7 @@ Each signal is a [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) vector, 
 
 Scores tend to be small: Two posts on the same subject often score around 0.05–0.1, and only near-duplicates get close to 1. They also depend on the site—the more varied its topics, the lower they are overall—so a good `score_min` on one site may not suit another.
 
-`score_min` affects only the list of related posts, not in-content links. Raising it drops weak matches, so lists get shorter, and posts without strong matches lose their list. As an example, on one German book blog with about 150 posts, entries below 0.03 were mostly unrelated, those between 0.03 and 0.04 mixed, and most above 0.04 fitting; raising `score_min` from 0.02 to 0.03 removed 44 of about 740 entries and left one post without a list, while 0.05 left 25 posts without one.
+`score_min` affects only the list of related posts, not in-content links. Raising it drops weak matches, so lists get shorter, and posts without strong matches lose their list. As an example, on one German book blog with about 150 posts, entries below 0.03 were mostly unrelated, those between 0.03 and 0.04 mixed, and most above 0.04 fitting; at 0.04, 11 of the posts had no list, and those with one had about 4 entries. If your lists show unrelated posts, raise `score_min`; if fitting posts are missing, lower it. Even at 0, a post can be without a list, if it shares no words, links, or terms with any other post that count.
 
 A changed `score_min` (like other ranking settings) applies from the next rebuild on, after the next relevant post change, or at the latest the next day.
 
@@ -104,7 +104,7 @@ Uninstalling the plugin removes its post meta, option, and scheduled events.
 
 Visitors don’t notice the size of a site: Showing the list takes a few database queries, and in-content links take lookups only for subjects the post’s text mentions.
 
-The rebuild does notice it, as it compares all posts with each other for the list. With posts of around 600 words, measured with `composer bench` (see below) on a fast computer—servers, especially shared hosting, may be slower:
+The rebuild does notice it, as it compares all posts with each other for the list. With posts of around 600 words, measured with `composer bench` on a fast computer—servers, especially shared hosting, may be slower:
 
 | Posts | Time | Memory |
 | --- | --- | --- |
