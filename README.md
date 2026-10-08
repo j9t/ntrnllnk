@@ -2,7 +2,7 @@
 
 [![Build status](https://github.com/j9t/ntrnllnk/workflows/Tests/badge.svg)](https://github.com/j9t/ntrnllnk/actions)
 
-ntrnllnk is a WordPress plugin for internal linking. It finds related posts automatically—without any manual input—and lists them after each post under “Further reading.” It supports German and English content.
+ntrnllnk is a WordPress plugin for internal linking. It finds related posts automatically—without any manual input—and lists them after each post under “Further reading.” Optionally, it also links mentions of other posts’ subjects within the text. It supports German and English content.
 
 ## Usage
 
@@ -26,6 +26,14 @@ To place the list yourself, set `placement` to `'manual'`, and use either
 * `ntrnllnk_render()`, in a theme template; it outputs the list of the current post, or of the post whose ID it receives.
 
 The shortcode also works with automatic placement: ntrnllnk then doesn’t append the list to that post.
+
+### In-Content Links
+
+With `links_inline` enabled, ntrnllnk also links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most `links_inline_max` such links per post, links each post only once, and leaves headings, existing links, code, tables, and figures (like images with their captions) alone. Links to posts the text already links to are skipped.
+
+What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”), that appear in no other post’s title and that the post’s own text mentions at least three times. Matching is case-sensitive and includes the genitive (“Agatha Christies,” “Agatha Christie’s”).
+
+In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
 
 ### Settings
 
@@ -54,6 +62,8 @@ add_filter(
 | `urls` | `'absolute'` | `'absolute'` for full URLs, which work wherever the content goes (feeds, REST API, email), or `'relative'` for root-relative URLs (`/…`) |
 | `placement` | `'auto'` | `'auto'` to append the list to the content, `'manual'` to place it yourself (see above) |
 | `priority` | `20` | With automatic placement, when the list gets appended to the content, relative to other plugins (see above) |
+| `links_inline` | `false` | Whether to link mentions of other posts’ subjects in the text (see above) |
+| `links_inline_max` | `3` | Maximum number of in-content links per post |
 | `language` | `'auto'` | Language of the content: `'auto'` detects it per post, `'de'` or `'en'` sets it for all posts |
 | `weights` | `['words' => 0.6, 'links' => 0.4]` | Weights of the signals (see below) |
 | `score_min` | `0.02` | Minimum score (0–1) for a post to count as related; posts with fewer matches show fewer related posts, or none |
@@ -69,9 +79,9 @@ Each signal is a [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) vector, 
 
 Stopwords and stems depend on the language. With `language` set to `'auto'`, ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are.
 
-Related posts are stored as post meta and refreshed in the background (WP-Cron) a minute after a post is published, updated, unpublished, or deleted, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them. When showing the list, it checks again that each related post is still published.
+Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in the background (WP-Cron) a minute after a post is published, updated, unpublished, or deleted, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them. When showing the list, it checks again that each related post is still published.
 
-Uninstalling the plugin removes its post meta and scheduled events.
+Uninstalling the plugin removes its post meta, option, and scheduled events.
 
 ## Development
 

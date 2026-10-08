@@ -18,6 +18,8 @@ final class Plugin {
 
 	public const META_KEY = '_ntrnllnk_related';
 
+	public const OPTION_PHRASES = 'ntrnllnk_phrases';
+
 	public const HOOK_REBUILD = 'ntrnllnk_rebuild';
 
 	public const HOOK_REBUILD_DAILY = 'ntrnllnk_rebuild_daily';
@@ -58,7 +60,7 @@ final class Plugin {
 	}
 
 	/**
-	 * Registers the shortcode and, for automatic placement, the content filter
+	 * Registers the shortcode and, as enabled, the content filters for automatic placement and in-content links
 	 *
 	 * Runs on `init`, after themes have loaded, so that settings from a theme apply.
 	 */
@@ -67,32 +69,38 @@ final class Plugin {
 		if ( 'auto' === $settings['placement'] ) {
 			add_filter( 'the_content', [ self::class, 'render' ], $settings['priority'] );
 		}
+		if ( $settings['links_inline'] ) {
+			// After shortcodes (11), so that their output counts, too
+			add_filter( 'the_content', [ self::class, 'link_content' ], 12 );
+		}
 		add_shortcode( 'ntrnllnk', [ self::class, 'shortcode' ] );
 	}
 
 	/**
 	 * Returns the settings, adjustable via the `ntrnllnk_settings` filter
 	 *
-	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, language: string, weights: array<string, float>, score_min: float}
+	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, language: string, weights: array<string, float>, score_min: float}
 	 */
 	public static function settings(): array {
 		$defaults = [
-			'post_types'    => [ 'post' ],
-			'count'         => 5,
-			'heading'       => __( 'Further reading', 'ntrnllnk' ),
-			'heading_level' => 2,
-			'urls'          => 'absolute',
-			'placement'     => 'auto',
-			'priority'      => 20,
-			'language'      => 'auto',
-			'weights'       => Ranker::WEIGHTS,
-			'score_min'     => 0.02,
+			'post_types'       => [ 'post' ],
+			'count'            => 5,
+			'heading'          => __( 'Further reading', 'ntrnllnk' ),
+			'heading_level'    => 2,
+			'urls'             => 'absolute',
+			'placement'        => 'auto',
+			'priority'         => 20,
+			'links_inline'     => false,
+			'links_inline_max' => 3,
+			'language'         => 'auto',
+			'weights'          => Ranker::WEIGHTS,
+			'score_min'        => 0.02,
 		];
 
 		/**
 		 * Filters the settings
 		 *
-		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), and `score_min`.
+		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), and `score_min`.
 		 */
 		return array_merge( $defaults, apply_filters( 'ntrnllnk_settings', $defaults ) );
 	}
@@ -176,9 +184,14 @@ final class Plugin {
 		$tokenizers    = [];
 		$url_base      = home_url();
 		$documents     = [];
+		$texts         = [];
 		foreach ( $posts as $post ) {
-			$content  = strip_shortcodes( $post->post_content );
-			$language = 'auto' === $settings['language'] ? Language::detect( Extract::text( $content ), $language_site ) : $settings['language'];
+			$content            = strip_shortcodes( $post->post_content );
+			$texts[ $post->ID ] = [
+				'title' => Extract::text( $post->post_title ),
+				'text'  => Extract::text( $content ),
+			];
+			$language           = 'auto' === $settings['language'] ? Language::detect( Extract::text( $content ), $language_site ) : $settings['language'];
 
 			$tokenizers[ $language ] ??= new Tokenizer( $language );
 			$documents[]               = Document::from_post(
@@ -193,6 +206,7 @@ final class Plugin {
 		}
 
 		$related = ( new Ranker( $settings['weights'], $settings['score_min'] ) )->related( $documents, $settings['count'] );
+		update_option( self::OPTION_PHRASES, Phrases::extract( $texts ), $settings['links_inline'] );
 
 		$ids_stale = get_posts(
 			[
@@ -290,6 +304,51 @@ final class Plugin {
 		 * @param int        $id    ID of the post they relate to.
 		 */
 		return apply_filters( 'ntrnllnk_html', $html, $posts, $id );
+	}
+
+	/**
+	 * Links the first mentions of other posts’ phrases in the content of a single post
+	 *
+	 * Links only to published posts, and not to posts the content already links to (outside the list of related posts).
+	 *
+	 * @param string $content Post content.
+	 */
+	public static function link_content( string $content ): string {
+		$settings = self::settings();
+		if ( ! is_singular( $settings['post_types'] ) || ! in_the_loop() || ! is_main_query() ) {
+			return $content;
+		}
+
+		$id      = (int) get_the_ID();
+		$phrases = array_filter( (array) get_option( self::OPTION_PHRASES, [] ), fn( $id_target ): bool => $id_target !== $id );
+		if ( ! $phrases ) {
+			return $content;
+		}
+
+		$posts = get_posts(
+			[
+				'post__in'       => array_values( array_unique( array_map( 'intval', $phrases ) ) ),
+				'post_type'      => $settings['post_types'],
+				'post_status'    => 'publish',
+				'has_password'   => false,
+				'posts_per_page' => -1,
+			]
+		);
+		$links = Extract::links( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() );
+		$urls  = [];
+		foreach ( $posts as $post ) {
+			$urls[ $post->ID ] = (string) get_permalink( $post );
+		}
+
+		$urls_phrases = [];
+		foreach ( $phrases as $phrase => $id_target ) {
+			$url = $urls[ $id_target ] ?? null;
+			if ( null !== $url && ! in_array( Extract::normalize_url( $url ), $links, true ) ) {
+				$urls_phrases[ (string) $phrase ] = 'relative' === $settings['urls'] ? wp_make_link_relative( $url ) : $url;
+			}
+		}
+
+		return Linker::link( $content, $urls_phrases, $settings['links_inline_max'] );
 	}
 
 	/**

@@ -14,4 +14,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Added the settings `heading_level` (including `'auto'`), `urls` (absolute or relative), `placement` (automatic or manual), and `priority`
 * Added the `[ntrnllnk]` shortcode and the `ntrnllnk_render()` template function for manual placement
 * Added the `ntrnllnk_html` filter for the list’s markup
+* Added optional in-content links (`links_inline`, `links_inline_max`), linking the first mention of another post’s subject
 * Added a German translation
