@@ -31,6 +31,7 @@ final class PluginTest extends TestCase {
 		Functions\when( 'get_permalink' )->alias( fn( \WP_Post $post ): string => 'https://example.com/' . $post->ID . '/' );
 		Functions\when( 'get_the_title' )->alias( fn( \WP_Post $post ): string => $post->post_title );
 		Functions\when( 'home_url' )->justReturn( 'https://example.com' );
+		Functions\when( 'get_file_data' )->justReturn( [ 'version' => '1.0.0' ] );
 		Functions\when( 'get_option' )->alias( fn( string $name, mixed $fallback = false ): mixed => $this->options[ $name ] ?? $fallback );
 	}
 
@@ -239,8 +240,11 @@ final class PluginTest extends TestCase {
 		$this->assertFalse( has_filter( 'the_content', [ Plugin::class, 'link_content' ] ) );
 	}
 
-	public function test_version_matches_plugin_header(): void {
-		$this->assertMatchesRegularExpression( '/^ \* Version: +' . preg_quote( Plugin::VERSION, '/' ) . '$/m', (string) file_get_contents( dirname( __DIR__ ) . '/ntrnllnk.php' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reads a local file
+	public function test_plugin_header_has_latest_changelog_version(): void {
+		// phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reads local files
+		preg_match( '/^## \[(\d+\.\d+\.\d+)\]/m', (string) file_get_contents( dirname( __DIR__ ) . '/CHANGELOG.md' ), $matches );
+		$this->assertMatchesRegularExpression( '/^ \* Version: +' . preg_quote( $matches[1] ?? '', '/' ) . '$/m', (string) file_get_contents( dirname( __DIR__ ) . '/ntrnllnk.php' ) );
+		// phpcs:enable
 	}
 
 	public function test_rebuild_after_update_rebuilds_soon_after_plugin_update(): void {
@@ -260,7 +264,7 @@ final class PluginTest extends TestCase {
 	}
 
 	public function test_rebuild_after_update_skips_rebuild_for_current_version(): void {
-		$this->options[ Plugin::OPTION_REBUILD ] = [ 'version' => Plugin::VERSION ];
+		$this->options[ Plugin::OPTION_REBUILD ] = [ 'version' => '1.0.0' ];
 		$this->expect_rebuild_soon( false );
 		Plugin::rebuild_after_update();
 	}
@@ -695,7 +699,7 @@ final class PluginTest extends TestCase {
 			}
 		);
 		Functions\expect( 'delete_post_meta' )->once()->with( 3, Plugin::META_KEY );
-		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::on( fn( array $status ): bool => 3 === $status['posts'] && Plugin::VERSION === $status['version'] && abs( $status['time'] - time() ) < 5 && $status['duration'] >= 0 ), false );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::on( fn( array $status ): bool => 3 === $status['posts'] && '1.0.0' === $status['version'] && abs( $status['time'] - time() ) < 5 && $status['duration'] >= 0 ), false );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], true );
 		Functions\expect( 'wp_set_option_autoload' )->once()->with( Plugin::OPTION_PHRASES, true );
 

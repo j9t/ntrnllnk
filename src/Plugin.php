@@ -18,11 +18,6 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Plugin {
 
-	/**
-	 * Plugin version, as in the plugin header, stored with each rebuild so that updates rebuild right away
-	 */
-	public const VERSION = '1.0.0';
-
 	public const META_KEY = '_ntrnllnk_related';
 
 	public const OPTION_PHRASES = 'ntrnllnk_phrases';
@@ -273,12 +268,19 @@ final class Plugin {
 	 */
 	public static function rebuild_after_update(): void {
 		$rebuild = get_option( self::OPTION_REBUILD );
-		if ( is_array( $rebuild ) && self::VERSION === ( $rebuild['version'] ?? null ) ) {
+		if ( is_array( $rebuild ) && self::version() === ( $rebuild['version'] ?? null ) ) {
 			return;
 		}
 		if ( ! wp_next_scheduled( self::HOOK_REBUILD ) && ! get_transient( self::TRANSIENT_LOCK ) ) {
 			self::rebuild_soon();
 		}
+	}
+
+	/**
+	 * Returns the plugin version, from the plugin header
+	 */
+	private static function version(): string {
+		return (string) get_file_data( self::$file, [ 'version' => 'Version' ] )['version'];
 	}
 
 	/**
@@ -418,7 +420,7 @@ final class Plugin {
 				'time'     => time(),
 				'duration' => round( microtime( true ) - $time, 1 ),
 				'posts'    => count( $ids ),
-				'version'  => self::VERSION,
+				'version'  => self::version(),
 			],
 			false
 		);
