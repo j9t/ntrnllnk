@@ -13,7 +13,7 @@ use Brain\Monkey\Functions;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use Ntrnllnk\Plugin;
-use Ntrnllnk\Ranker;
+use Ntrnllnk\Settings;
 use PHPUnit\Framework\TestCase;
 
 final class PluginTest extends TestCase {
@@ -31,6 +31,7 @@ final class PluginTest extends TestCase {
 		Functions\when( 'get_permalink' )->alias( fn( \WP_Post $post ): string => 'https://example.com/' . $post->ID . '/' );
 		Functions\when( 'get_the_title' )->alias( fn( \WP_Post $post ): string => $post->post_title );
 		Functions\when( 'home_url' )->justReturn( 'https://example.com' );
+		Functions\when( 'get_option' )->alias( fn( string $name, mixed $fallback = false ): mixed => $this->options[ $name ] ?? $fallback );
 	}
 
 	protected function tearDown(): void {
@@ -39,12 +40,19 @@ final class PluginTest extends TestCase {
 	}
 
 	/**
-	 * Overrides settings via the `ntrnllnk_settings` filter
+	 * Options by name, as `get_option()` returns them
+	 *
+	 * @var array<string, mixed>
+	 */
+	private array $options = [];
+
+	/**
+	 * Stores settings, as saved on the settings page
 	 *
 	 * @param array<string, mixed> $settings Settings to override.
 	 */
 	private function settings( array $settings ): void {
-		Filters\expectApplied( 'ntrnllnk_settings' )->andReturnUsing( fn( array $defaults ): array => array_merge( $defaults, $settings ) );
+		$this->options[ Plugin::OPTION_SETTINGS ] = $settings;
 	}
 
 	/**
@@ -78,6 +86,11 @@ final class PluginTest extends TestCase {
 		Functions\when( 'wp_raise_memory_limit' )->justReturn( false );
 		Functions\when( 'update_object_term_cache' )->justReturn( null );
 		Functions\when( 'update_meta_cache' )->justReturn( [] );
+	}
+
+	private function expect_rebuild_soon( bool $scheduled ): void {
+		Functions\expect( 'wp_clear_scheduled_hook' )->times( $scheduled ? 1 : 0 )->with( Plugin::HOOK_REBUILD );
+		Functions\expect( 'wp_schedule_single_event' )->times( $scheduled ? 1 : 0 )->with( Mockery::type( 'int' ), Plugin::HOOK_REBUILD );
 	}
 
 	private function expect_rebuild( bool $scheduled ): void {
@@ -187,28 +200,7 @@ final class PluginTest extends TestCase {
 		Plugin::on_delete_term( 5, 9, 'category', null, [] );
 	}
 
-	/**
-	 * Returns the ranking settings a rebuild stores, by default
-	 *
-	 * @param array<string, mixed> $settings Settings to override.
-	 * @return array<string, mixed>
-	 */
-	private function settings_ranking( array $settings = [] ): array {
-		return array_merge(
-			[
-				'post_types' => [ 'post' ],
-				'count'      => 5,
-				'language'   => 'auto',
-				'weights'    => Ranker::WEIGHTS,
-				'score_min'  => 0.04,
-				'debug'      => false,
-			],
-			$settings
-		);
-	}
-
 	public function test_register_output_appends_list_and_links_content_by_default(): void {
-		Functions\when( 'get_option' )->justReturn( $this->settings_ranking() );
 		Functions\expect( 'add_shortcode' )->once()->with( 'ntrnllnk', [ Plugin::class, 'shortcode' ] );
 		Plugin::register_output();
 
@@ -224,8 +216,6 @@ final class PluginTest extends TestCase {
 			]
 		);
 		Functions\when( 'add_shortcode' )->justReturn( true );
-		Functions\when( 'wp_next_scheduled' )->justReturn( 1 );
-		Functions\when( 'get_option' )->justReturn( [] );
 		Plugin::register_output();
 
 		$this->assertFalse( has_filter( 'the_content', [ Plugin::class, 'render' ] ) );
@@ -235,39 +225,51 @@ final class PluginTest extends TestCase {
 	public function test_register_output_uses_priority(): void {
 		$this->settings( [ 'priority' => 8 ] );
 		Functions\when( 'add_shortcode' )->justReturn( true );
-		Functions\when( 'wp_next_scheduled' )->justReturn( 1 );
-		Functions\when( 'get_option' )->justReturn( [] );
 		Plugin::register_output();
 
 		$this->assertTrue( has_filter( 'the_content', [ Plugin::class, 'render' ], 8 ) );
 	}
 
-	public function test_register_output_schedules_rebuild_when_ranking_settings_change(): void {
-		$this->settings( [ 'score_min' => 0.06 ] );
-		Functions\when( 'add_shortcode' )->justReturn( true );
-		Functions\expect( 'get_option' )->once()->with( Plugin::OPTION_SETTINGS )->andReturn( $this->settings_ranking() );
-		$this->expect_rebuild( true );
-		Plugin::register_output();
-	}
-
-	public function test_register_output_schedules_rebuild_before_first_rebuild(): void {
-		Functions\when( 'add_shortcode' )->justReturn( true );
-		Functions\when( 'get_option' )->justReturn( false );
-		$this->expect_rebuild( true );
-		Plugin::register_output();
-	}
-
-	public function test_register_output_skips_rebuild_when_only_display_settings_change(): void {
+	public function test_settings_merge_stored_settings_over_defaults(): void {
 		$this->settings(
 			[
-				'heading'      => 'Related posts',
-				'links_inline' => false,
+				'count'   => 3,
+				'unknown' => true,
 			]
 		);
-		Functions\when( 'add_shortcode' )->justReturn( true );
-		Functions\when( 'get_option' )->justReturn( $this->settings_ranking() );
-		$this->expect_rebuild( false );
-		Plugin::register_output();
+		$settings = Plugin::settings();
+
+		$this->assertSame( 3, $settings['count'] );
+		$this->assertSame( Settings::DEFAULTS['score_min'], $settings['score_min'] );
+		$this->assertArrayNotHasKey( 'unknown', $settings );
+	}
+
+	public function test_settings_use_default_heading_unless_set(): void {
+		$this->assertSame( 'Further reading', Plugin::settings()['heading'] );
+
+		$this->settings( [ 'heading' => 'Related posts' ] );
+		$this->assertSame( 'Related posts', Plugin::settings()['heading'] );
+	}
+
+	public function test_settings_saved_rebuilds_soon_when_ranking_settings_change(): void {
+		$this->expect_rebuild_soon( true );
+		Plugin::on_settings_saved( [], [ 'score_min' => 0.06 ] + Settings::DEFAULTS );
+	}
+
+	public function test_settings_saved_skips_rebuild_when_only_display_settings_change(): void {
+		$this->expect_rebuild_soon( false );
+		Plugin::on_settings_saved( Settings::DEFAULTS, [ 'heading' => 'Related posts' ] + Settings::DEFAULTS );
+	}
+
+	public function test_settings_added_rebuilds_soon_unless_ranking_settings_are_defaults(): void {
+		$this->expect_rebuild_soon( true );
+		Plugin::on_settings_added( Plugin::OPTION_SETTINGS, [ 'count' => 3 ] + Settings::DEFAULTS );
+	}
+
+	public function test_rebuild_soon_replaces_pending_rebuild(): void {
+		Functions\expect( 'wp_clear_scheduled_hook' )->once()->with( Plugin::HOOK_REBUILD );
+		Functions\expect( 'wp_schedule_single_event' )->once()->with( Mockery::on( fn( int $time ): bool => abs( $time - time() ) < 5 ), Plugin::HOOK_REBUILD );
+		Plugin::rebuild_soon();
 	}
 
 	public function test_html_returns_empty_string_without_related_posts(): void {
@@ -458,7 +460,7 @@ final class PluginTest extends TestCase {
 			]
 		);
 		$this->view( 7 );
-		Functions\when( 'get_option' )->justReturn( [ 'Agatha Christie' => 11 ] );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
 		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ) ] );
 
 		$this->assertSame(
@@ -470,13 +472,11 @@ final class PluginTest extends TestCase {
 	public function test_link_content_links_published_targets_only_once(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );
-		Functions\when( 'get_option' )->justReturn(
-			[
-				'Agatha Christie' => 11,
-				'Harry Potter'    => 12,
-				'Stephen King'    => 7,
-			]
-		);
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+			'Stephen King'    => 7,
+		];
 		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'post__in' => [ 11, 12 ] ] ) )->andReturn(
 			[
 				$this->post( [ 'ID' => 11 ] ),
@@ -500,12 +500,10 @@ final class PluginTest extends TestCase {
 			]
 		);
 		$this->view( 7 );
-		Functions\when( 'get_option' )->justReturn(
-			[
-				'Agatha Christie' => 11,
-				'Harry Potter'    => 12,
-			]
-		);
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+		];
 		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'post__in' => [ 12 ] ] ) )->andReturn( [ $this->post( [ 'ID' => 12 ] ) ] );
 
 		$this->assertSame(
@@ -517,7 +515,7 @@ final class PluginTest extends TestCase {
 	public function test_link_content_skips_lookups_without_mentioned_phrases(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );
-		Functions\when( 'get_option' )->justReturn( [ 'Agatha Christie' => 11 ] );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
 		Functions\expect( 'get_posts' )->never();
 		Functions\expect( 'url_to_postid' )->never();
 
@@ -532,7 +530,7 @@ final class PluginTest extends TestCase {
 			]
 		);
 		$this->view( 7 );
-		Functions\expect( 'get_option' )->never();
+		Filters\expectApplied( 'ntrnllnk_phrases' )->never();
 
 		$this->assertSame( '<p>Agatha Christie</p>', Plugin::link_content( '<p>Agatha Christie</p>' ) );
 	}
@@ -540,7 +538,7 @@ final class PluginTest extends TestCase {
 	public function test_link_content_applies_phrases_filter(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );
-		Functions\when( 'get_option' )->justReturn( [ 'Agatha Christie' => 11 ] );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
 		Filters\expectApplied( 'ntrnllnk_phrases' )->once()->with( [ 'Agatha Christie' => 11 ], 7 )->andReturn( [ 'Kluftinger' => 13 ] );
 		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'post__in' => [ 13 ] ] ) )->andReturn( [ $this->post( [ 'ID' => 13 ] ) ] );
 
@@ -553,7 +551,7 @@ final class PluginTest extends TestCase {
 	public function test_link_content_ignores_links_in_list(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );
-		Functions\when( 'get_option' )->justReturn( [ 'Agatha Christie' => 11 ] );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
 		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ) ] );
 		Functions\when( 'url_to_postid' )->justReturn( 11 );
 
@@ -600,7 +598,7 @@ final class PluginTest extends TestCase {
 			}
 		);
 		Functions\expect( 'delete_post_meta' )->once()->with( 3, Plugin::META_KEY );
-		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_SETTINGS, $this->settings_ranking(), true );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::on( fn( array $status ): bool => 3 === $status['posts'] && abs( $status['time'] - time() ) < 5 && $status['duration'] >= 0 ), false );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], true );
 		Functions\expect( 'wp_set_option_autoload' )->once()->with( Plugin::OPTION_PHRASES, true );
 
@@ -716,7 +714,7 @@ final class PluginTest extends TestCase {
 		Functions\when( 'strip_shortcodes' )->returnArg();
 		Functions\expect( 'update_post_meta' )->never();
 		Functions\expect( 'delete_post_meta' )->once()->with( 1, Plugin::META_KEY );
-		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_SETTINGS, $this->settings_ranking( [ 'count' => 0 ] ), true );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::type( 'array' ), false );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], true );
 		Functions\when( 'wp_set_option_autoload' )->justReturn( true );
 

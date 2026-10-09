@@ -10,16 +10,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 * Added a “Further reading” list of related posts after the content of each post, based on shared words, links, and terms
 * Added German and English support, with the language detected per post
-* Added the `ntrnllnk_settings` filter for post types, count, heading, heading level, language, signal weights, and minimum score
-* Added the settings `heading_level` (including `'auto'`), `urls` (absolute or relative), `placement` (automatic or manual), and `priority`
+* Added a settings page (Settings → ntrnllnk) for the number of related posts, heading, heading level (including automatic), minimum score, in-content links, post types, placement (automatic or manual), priority, URLs (absolute or relative), language, and the weight of words versus links
+* Added the rebuild status and a “Rebuild Now” button to the settings page; saving settings that affect related posts starts a rebuild right away
 * Added the `[ntrnllnk]` shortcode and the `ntrnllnk_render()` template function for manual placement
 * Added the `ntrnllnk_html` filter for the list’s markup
-* Added in-content links (`links_inline`, on by default, and `links_inline_max`), linking the first mention of another post’s subject, at most once per paragraph and never twice to the same post
-* Added `links_inline_exclude_phrases`, `links_inline_exclude_posts`, and the `ntrnllnk_phrases` filter to control in-content links
+* Added in-content links (on by default, with a maximum per post), linking the first mention of another post’s subject, at most once per paragraph and never twice to the same post
+* Added excluded phrases, excluded posts, and the `ntrnllnk_phrases` filter to control in-content links
 * Added a German translation
 * Added background rebuilds that scale to large sites: posts load in batches, ranking skips words and links in more than 500 posts, rebuilds don’t overlap, and edits trigger them only when they affect related posts
-* Added `count` `0` to turn off the list, which also skips ranking in rebuilds, for sites that want only in-content links
+* Added the option to turn off the list (0 related posts), which also skips ranking in rebuilds, for sites that want only in-content links
 * Added `composer bench`, which measures the time and memory of a rebuild, on generated or exported posts
-* Added `links_class` to give in-content links the class `ntrnllnk-inline`
-* Added rebuilds when ranking settings (`post_types`, `count`, `language`, `weights`, `score_min`, `debug`) change, so that they apply within minutes rather than on the next post change or daily rebuild
-* Added `debug`, which shows logged-in users who can edit posts the scores behind the list, per signal, and posts that just missed `score_min`
+* Added the option to give in-content links the class `ntrnllnk-inline`
+* Added debugging, which shows logged-in users who can edit posts the scores behind the list, per signal, and posts that just missed the minimum score

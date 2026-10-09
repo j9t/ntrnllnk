@@ -12,7 +12,9 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Connects the ranker to WordPress: rebuilds related posts in the background and outputs them
  *
- * Related posts are computed for all published posts at once, because a new post can change every other post’s list. Rebuilds run via WP-Cron, a minute after a change (so that bulk edits cause one rebuild) and daily as a safety net. They load posts in batches, so that large sites fit into memory.
+ * Related posts are computed for all published posts at once, because a new post can change every other post’s list. Rebuilds run via WP-Cron, a minute after a post change (so that bulk edits cause one rebuild), right after a settings change, and daily as a safety net. They load posts in batches, so that large sites fit into memory.
+ *
+ * @phpstan-import-type Values from Settings
  */
 final class Plugin {
 
@@ -20,7 +22,9 @@ final class Plugin {
 
 	public const OPTION_PHRASES = 'ntrnllnk_phrases';
 
-	public const OPTION_SETTINGS = 'ntrnllnk_settings_ranking';
+	public const OPTION_SETTINGS = 'ntrnllnk_settings';
+
+	public const OPTION_REBUILD = 'ntrnllnk_rebuild';
 
 	public const HOOK_REBUILD = 'ntrnllnk_rebuild';
 
@@ -44,11 +48,6 @@ final class Plugin {
 	 * Post fields that, when changed on a published post, change related posts
 	 */
 	private const FIELDS_RELEVANT = [ 'post_content', 'post_date', 'post_password', 'post_title', 'post_type' ];
-
-	/**
-	 * Settings that decide related posts, so that changing them requires a rebuild
-	 */
-	private const SETTINGS_RANKING = [ 'post_types', 'count', 'language', 'weights', 'score_min', 'debug' ];
 
 	/**
 	 * Share of `score_min` down to which rebuilds keep posts when debugging, for editors to see near misses
@@ -89,18 +88,17 @@ final class Plugin {
 		add_action( 'before_delete_post', [ self::class, 'on_before_delete_post' ], 10, 2 );
 		add_action( 'set_object_terms', [ self::class, 'on_set_object_terms' ], 10, 6 );
 		add_action( 'delete_term', [ self::class, 'on_delete_term' ], 10, 5 );
+		add_action( 'update_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_saved' ], 10, 2 );
+		add_action( 'add_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_added' ], 10, 2 );
+
+		Admin::register( $file );
 	}
 
 	/**
-	 * Registers the shortcode and, as enabled, the content filters for automatic placement and in-content links, and schedules a rebuild if ranking settings changed since the last one
-	 *
-	 * Runs on `init`, after themes have loaded, so that settings from a theme apply.
+	 * Registers the shortcode and, as enabled, the content filters for automatic placement and in-content links
 	 */
 	public static function register_output(): void {
 		$settings = self::settings();
-		if ( get_option( self::OPTION_SETTINGS ) !== self::settings_ranking( $settings ) ) {
-			self::schedule_rebuild();
-		}
 		if ( 'auto' === $settings['placement'] ) {
 			add_filter( 'the_content', [ self::class, 'render' ], $settings['priority'] );
 		}
@@ -112,36 +110,18 @@ final class Plugin {
 	}
 
 	/**
-	 * Returns the settings, adjustable via the `ntrnllnk_settings` filter
+	 * Returns the settings, as saved on the settings page, with defaults for the rest
 	 *
-	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array<string, float>, score_min: float, debug: bool}
+	 * @return Values
 	 */
 	public static function settings(): array {
-		$defaults = [
-			'post_types'                   => [ 'post' ],
-			'count'                        => 5,
-			'heading'                      => __( 'Further reading', 'ntrnllnk' ),
-			'heading_level'                => 2,
-			'urls'                         => 'absolute',
-			'placement'                    => 'auto',
-			'priority'                     => 20,
-			'links_inline'                 => true,
-			'links_inline_max'             => 3,
-			'links_inline_exclude_phrases' => [],
-			'links_inline_exclude_posts'   => [],
-			'links_class'                  => false,
-			'language'                     => 'auto',
-			'weights'                      => Ranker::WEIGHTS,
-			'score_min'                    => 0.04,
-			'debug'                        => false,
-		];
+		// Sanitized again, so that settings stored otherwise than via the settings page cannot break anything
+		$settings = Settings::sanitize( Settings::merge( get_option( self::OPTION_SETTINGS, [] ) ) );
+		if ( '' === $settings['heading'] ) {
+			$settings['heading'] = __( 'Further reading', 'ntrnllnk' );
+		}
 
-		/**
-		 * Filters the settings
-		 *
-		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `links_inline_exclude_phrases`, `links_inline_exclude_posts`, `links_class`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), `score_min`, and `debug`.
-		 */
-		return array_merge( $defaults, apply_filters( 'ntrnllnk_settings', $defaults ) );
+		return $settings;
 	}
 
 	/**
@@ -256,6 +236,37 @@ final class Plugin {
 	}
 
 	/**
+	 * Rebuilds right away when saved settings change related posts
+	 *
+	 * @param mixed $settings_old Previous settings.
+	 * @param mixed $settings_new New settings.
+	 */
+	public static function on_settings_saved( mixed $settings_old, mixed $settings_new ): void {
+		$ranking = fn( mixed $settings ): array => Settings::ranking( Settings::merge( $settings ) );
+		if ( $ranking( $settings_old ) !== $ranking( $settings_new ) ) {
+			self::rebuild_soon();
+		}
+	}
+
+	/**
+	 * Rebuilds right away when settings saved for the first time change related posts
+	 *
+	 * @param string $option   Option name.
+	 * @param mixed  $settings Settings.
+	 */
+	public static function on_settings_added( string $option, mixed $settings ): void {
+		self::on_settings_saved( [], $settings );
+	}
+
+	/**
+	 * Schedules a rebuild for right away, replacing a pending one; WP-Cron starts it on the next request
+	 */
+	public static function rebuild_soon(): void {
+		wp_clear_scheduled_hook( self::HOOK_REBUILD );
+		wp_schedule_single_event( time(), self::HOOK_REBUILD );
+	}
+
+	/**
 	 * Schedules a single rebuild, unless one is pending
 	 */
 	public static function schedule_rebuild(): void {
@@ -286,10 +297,9 @@ final class Plugin {
 	private static function build(): void {
 		wp_raise_memory_limit( 'ntrnllnk' );
 
+		$time     = microtime( true );
 		$settings = self::settings();
-		// Stored first, so that a failing rebuild does not get rescheduled on every request
-		update_option( self::OPTION_SETTINGS, self::settings_ranking( $settings ), true );
-		$ids = get_posts(
+		$ids      = get_posts(
 			[
 				'post_type'        => $settings['post_types'],
 				'post_status'      => 'publish',
@@ -377,6 +387,16 @@ final class Plugin {
 				update_post_meta( $id, self::META_KEY, array_map( fn( array $parts ): array => array_map( fn( float $part ): float => round( $part, 6 ), $parts ), $related[ $id ] ) );
 			}
 		}
+
+		update_option(
+			self::OPTION_REBUILD,
+			[
+				'time'     => time(),
+				'duration' => round( microtime( true ) - $time, 1 ),
+				'posts'    => count( $ids ),
+			],
+			false
+		);
 	}
 
 	/**
@@ -560,16 +580,6 @@ final class Plugin {
 	 */
 	private static function is_enabled( \WP_Post $post ): bool {
 		return in_array( $post->post_type, self::settings()['post_types'], true );
-	}
-
-	/**
-	 * Returns the settings that decide related posts
-	 *
-	 * @param array<string, mixed> $settings Settings.
-	 * @return array<string, mixed>
-	 */
-	private static function settings_ranking( array $settings ): array {
-		return array_intersect_key( $settings, array_flip( self::SETTINGS_RANKING ) );
 	}
 
 	/**
