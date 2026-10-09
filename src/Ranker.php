@@ -61,7 +61,7 @@ final class Ranker {
 	 *
 	 * @param Document[] $documents Documents.
 	 * @param int        $count     Maximum number of related documents per document.
-	 * @return array<int, array<int, float>> Document ID => related document IDs and scores, best first.
+	 * @return array<int, array<int, array<string, float>>> Document ID => related document IDs, best first => weighted similarity per contributing signal, adding up to the score.
 	 */
 	public function related( array $documents, int $count ): array {
 		$times   = [];
@@ -70,7 +70,7 @@ final class Ranker {
 			$times[ $document->id ] = $document->time;
 		}
 		foreach ( $this->weights as $signal => $weight ) {
-			$signals[] = [ ...$this->index( $documents, $signal ), $weight ];
+			$signals[ $signal ] = [ ...$this->index( $documents, $signal ), $weight ];
 		}
 
 		// Scored one document at a time, so that memory grows with the number of documents, not of pairs
@@ -99,10 +99,38 @@ final class Ranker {
 				// Rounding keeps float noise from overriding the tie-breakers (newer first, then lower ID)
 				fn( int $a, int $b ): int => [ round( $scores[ $b ], 6 ), $times[ $b ], $a ] <=> [ round( $scores[ $a ], 6 ), $times[ $a ], $b ]
 			);
-			$related[ $document->id ] = array_slice( $scores, 0, $count, true );
+
+			// Split by signal only for the few related documents, so that scoring above stays lean
+			$related[ $document->id ] = [];
+			foreach ( array_keys( array_slice( $scores, 0, $count, true ) ) as $id_other ) {
+				$related[ $document->id ][ $id_other ] = self::parts( $signals, $document->id, $id_other );
+			}
 		}//end foreach
 
 		return $related;
+	}
+
+	/**
+	 * Returns the weighted similarity of two documents per signal, leaving out signals without any
+	 *
+	 * @param array<string, array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>, 2: float}> $signals  Indexes and weights per signal.
+	 * @param int                                                                                                            $id       Document ID.
+	 * @param int                                                                                                            $id_other Other document’s ID.
+	 * @return array<string, float>
+	 */
+	private static function parts( array $signals, int $id, int $id_other ): array {
+		$parts = [];
+		foreach ( $signals as $signal => [ $features, $postings, $weight ] ) {
+			$similarity = 0.0;
+			foreach ( $features[ $id ] as $feature ) {
+				$similarity += $postings[ $feature ][ $id ] * ( $postings[ $feature ][ $id_other ] ?? 0.0 );
+			}
+			if ( $similarity > 0 ) {
+				$parts[ $signal ] = $weight * $similarity;
+			}
+		}
+
+		return $parts;
 	}
 
 	/**

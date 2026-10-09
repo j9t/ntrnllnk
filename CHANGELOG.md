@@ -21,3 +21,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 * Added `count` `0` to turn off the list, which also skips ranking in rebuilds, for sites that want only in-content links
 * Added `composer bench`, which measures the time and memory of a rebuild, on generated or exported posts
 * Added `links_class` to give in-content links the class `ntrnllnk-inline`
+* Added rebuilds when ranking settings (`post_types`, `count`, `language`, `weights`, `score_min`, `debug`) change, so that they apply within minutes rather than on the next post change or daily rebuild
+* Added `debug`, which shows logged-in users who can edit posts the scores behind the list, per signal, and posts that just missed `score_min`

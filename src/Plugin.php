@@ -20,6 +20,8 @@ final class Plugin {
 
 	public const OPTION_PHRASES = 'ntrnllnk_phrases';
 
+	public const OPTION_SETTINGS = 'ntrnllnk_settings_ranking';
+
 	public const HOOK_REBUILD = 'ntrnllnk_rebuild';
 
 	public const HOOK_REBUILD_DAILY = 'ntrnllnk_rebuild_daily';
@@ -42,6 +44,16 @@ final class Plugin {
 	 * Post fields that, when changed on a published post, change related posts
 	 */
 	private const FIELDS_RELEVANT = [ 'post_content', 'post_date', 'post_password', 'post_title', 'post_type' ];
+
+	/**
+	 * Settings that decide related posts, so that changing them requires a rebuild
+	 */
+	private const SETTINGS_RANKING = [ 'post_types', 'count', 'language', 'weights', 'score_min', 'debug' ];
+
+	/**
+	 * Share of `score_min` down to which rebuilds keep posts when debugging, for editors to see near misses
+	 */
+	private const FACTOR_DEBUG = 0.5;
 
 	/**
 	 * Main plugin file
@@ -80,12 +92,15 @@ final class Plugin {
 	}
 
 	/**
-	 * Registers the shortcode and, as enabled, the content filters for automatic placement and in-content links
+	 * Registers the shortcode and, as enabled, the content filters for automatic placement and in-content links, and schedules a rebuild if ranking settings changed since the last one
 	 *
 	 * Runs on `init`, after themes have loaded, so that settings from a theme apply.
 	 */
 	public static function register_output(): void {
 		$settings = self::settings();
+		if ( get_option( self::OPTION_SETTINGS ) !== self::settings_ranking( $settings ) ) {
+			self::schedule_rebuild();
+		}
 		if ( 'auto' === $settings['placement'] ) {
 			add_filter( 'the_content', [ self::class, 'render' ], $settings['priority'] );
 		}
@@ -99,7 +114,7 @@ final class Plugin {
 	/**
 	 * Returns the settings, adjustable via the `ntrnllnk_settings` filter
 	 *
-	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array<string, float>, score_min: float}
+	 * @return array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: 'absolute'|'relative', placement: 'auto'|'manual', priority: int, links_inline: bool, links_inline_max: int, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array<string, float>, score_min: float, debug: bool}
 	 */
 	public static function settings(): array {
 		$defaults = [
@@ -118,12 +133,13 @@ final class Plugin {
 			'language'                     => 'auto',
 			'weights'                      => Ranker::WEIGHTS,
 			'score_min'                    => 0.04,
+			'debug'                        => false,
 		];
 
 		/**
 		 * Filters the settings
 		 *
-		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `links_inline_exclude_phrases`, `links_inline_exclude_posts`, `links_class`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), and `score_min`.
+		 * @param array $settings Settings: `post_types`, `count`, `heading`, `heading_level` (2–6 or `auto`), `urls` (`absolute`, `relative`), `placement` (`auto`, `manual`), `priority`, `links_inline`, `links_inline_max`, `links_inline_exclude_phrases`, `links_inline_exclude_posts`, `links_class`, `language` (`auto`, `de`, `en`), `weights` (`words`, `links`), `score_min`, and `debug`.
 		 */
 		return array_merge( $defaults, apply_filters( 'ntrnllnk_settings', $defaults ) );
 	}
@@ -271,7 +287,9 @@ final class Plugin {
 		wp_raise_memory_limit( 'ntrnllnk' );
 
 		$settings = self::settings();
-		$ids      = get_posts(
+		// Stored first, so that a failing rebuild does not get rescheduled on every request
+		update_option( self::OPTION_SETTINGS, self::settings_ranking( $settings ), true );
+		$ids = get_posts(
 			[
 				'post_type'        => $settings['post_types'],
 				'post_status'      => 'publish',
@@ -330,7 +348,8 @@ final class Plugin {
 			}
 		}//end foreach
 
-		$related = $rank ? ( new Ranker( $settings['weights'], $settings['score_min'] ) )->related( $documents, $settings['count'] ) : [];
+		$score_min = $settings['debug'] ? $settings['score_min'] * self::FACTOR_DEBUG : $settings['score_min'];
+		$related   = $rank ? ( new Ranker( $settings['weights'], $score_min ) )->related( $documents, $settings['count'] ) : [];
 		unset( $documents );
 		update_option( self::OPTION_PHRASES, Phrases::extract( $mentions, $times ), $settings['links_inline'] );
 		// `update_option()` changes autoloading only along with the value
@@ -355,7 +374,7 @@ final class Plugin {
 		foreach ( array_chunk( array_keys( array_filter( $related ) ), self::COUNT_BATCH ) as $ids_batch ) {
 			update_meta_cache( 'post', $ids_batch );
 			foreach ( $ids_batch as $id ) {
-				update_post_meta( $id, self::META_KEY, array_keys( $related[ $id ] ) );
+				update_post_meta( $id, self::META_KEY, array_map( fn( array $parts ): array => array_map( fn( float $part ): float => round( $part, 6 ), $parts ), $related[ $id ] ) );
 			}
 		}
 	}
@@ -399,15 +418,20 @@ final class Plugin {
 		if ( $settings['count'] < 1 ) {
 			return '';
 		}
-		$ids = get_post_meta( $id, self::META_KEY, true );
-		if ( ! is_array( $ids ) || ! $ids ) {
+		$related = array_filter( (array) get_post_meta( $id, self::META_KEY, true ), 'is_array' );
+		$debug   = $settings['debug'] && $related && current_user_can( 'edit_posts' );
+		if ( ! $debug ) {
+			// Only near misses kept for debugging fall below
+			$related = array_filter( $related, fn( array $parts ): bool => round( array_sum( $parts ), 6 ) >= $settings['score_min'] );
+		}
+		if ( ! $related ) {
 			return '';
 		}
 
 		// Checked again, because related posts may have been unpublished since the last rebuild
 		$posts = get_posts(
 			[
-				'post__in'       => array_map( 'intval', $ids ),
+				'post__in'       => array_map( 'intval', array_keys( $related ) ),
 				'post_type'      => $settings['post_types'],
 				'post_status'    => 'publish',
 				'has_password'   => false,
@@ -423,9 +447,18 @@ final class Plugin {
 		$level = min( 6, max( 2, $level ) );
 		$items = '';
 		foreach ( $posts as $post ) {
-			$url    = (string) get_permalink( $post );
-			$url    = 'relative' === $settings['urls'] ? wp_make_link_relative( $url ) : $url;
-			$items .= sprintf( '<li><a href="%s">%s</a></li>', esc_url( $url ), esc_html( get_the_title( $post ) ) );
+			$url       = (string) get_permalink( $post );
+			$url       = 'relative' === $settings['urls'] ? wp_make_link_relative( $url ) : $url;
+			$link      = sprintf( '<a href="%s">%s</a>', esc_url( $url ), esc_html( get_the_title( $post ) ) );
+			$debugging = '';
+			if ( $debug ) {
+				$parts     = $related[ $post->ID ] ?? [];
+				$debugging = ' ' . self::debugging( $parts, array_keys( Ranker::WEIGHTS ) );
+				if ( round( array_sum( $parts ), 6 ) < $settings['score_min'] ) {
+					$link = sprintf( '<del title="%s">%s</del>', esc_attr( sprintf( 'Below score_min (%s), so not shown to visitors', $settings['score_min'] ) ), $link );
+				}
+			}
+			$items .= sprintf( '<li>%s%s</li>', $link, $debugging );
 		}
 		$html = sprintf( '<section class="ntrnllnk"><h%1$d>%2$s</h%1$d><ul>%3$s</ul></section>', $level, esc_html( $settings['heading'] ), $items );
 
@@ -437,6 +470,20 @@ final class Plugin {
 		 * @param int        $id    ID of the post they relate to.
 		 */
 		return apply_filters( 'ntrnllnk_html', $html, $posts, $id );
+	}
+
+	/**
+	 * Returns the debugging data of a related post: its score and the share of each signal
+	 *
+	 * @param array<string, float> $parts   Weighted similarity per contributing signal.
+	 * @param string[]             $signals All signals.
+	 */
+	private static function debugging( array $parts, array $signals ): string {
+		$format = fn( float $value ): string => rtrim( rtrim( sprintf( '%.3F', $value ), '0' ), '.' );
+		$score  = round( array_sum( $parts ), 6 );
+		$shares = array_map( fn( string $signal ): string => $signal . ' ' . $format( $parts[ $signal ] ?? 0.0 ), $signals );
+
+		return sprintf( '<span class="ntrnllnk-debug">[score: %s – %s]</span>', $format( $score ), esc_html( implode( ', ', $shares ) ) );
 	}
 
 	/**
@@ -513,6 +560,16 @@ final class Plugin {
 	 */
 	private static function is_enabled( \WP_Post $post ): bool {
 		return in_array( $post->post_type, self::settings()['post_types'], true );
+	}
+
+	/**
+	 * Returns the settings that decide related posts
+	 *
+	 * @param array<string, mixed> $settings Settings.
+	 * @return array<string, mixed>
+	 */
+	private static function settings_ranking( array $settings ): array {
+		return array_intersect_key( $settings, array_flip( self::SETTINGS_RANKING ) );
 	}
 
 	/**

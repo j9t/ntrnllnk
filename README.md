@@ -76,6 +76,20 @@ add_filter(
 | `language` | `'auto'` | Language of the content: `'auto'` detects it per post, `'de'` or `'en'` sets it for all posts |
 | `weights` | `['words' => 0.6, 'links' => 0.4]` | Weights of the signals |
 | `score_min` | `0.04` | Minimum score (0–1) for a post to count as related; posts with fewer matches show fewer related posts, or no list at all |
+| `debug` | `false` | Whether to show logged-in users who can edit posts (contributors and up) the scores behind the list, and posts that just missed `score_min` |
+
+### When Changes Apply
+
+**To apply changed settings, open any page of the site, wait at least a minute, and open a page again** (bypassing any page cache, as when logged in); a few seconds later, posts show their new lists. (If the site runs WP-Cron via the system’s cron, the second page view isn’t needed, but the wait depends on how often that cron runs.)
+
+ntrnllnk doesn’t work out related posts when showing a post, but in the background, in a rebuild, and stores them. That’s why settings take effect at different times:
+
+* **Display settings**—`heading`, `heading_level`, `urls`, `placement`, `priority`, `links_class`, and all `links_inline…` settings—apply right away, from the next page view on. So does lowering `count`, or setting it to `0`.
+* **Ranking settings**—`post_types`, `count`, `language`, `weights`, `score_min`, and `debug`—decide which posts are related, and apply after a rebuild. ntrnllnk notices when they change and schedules one: A minute after the first page view with the new settings, the next page view starts the rebuild, which takes a few seconds on most sites (see “Performance”); then, the new lists show.
+
+Posts trigger rebuilds, too: when they get published, unpublished, or deleted, or when their title, content, date, password, categories, or tags change. The subjects for in-content links come from these rebuilds as well. Besides, every site gets one rebuild a day.
+
+Rebuilds run via WP-Cron, which runs on page views, so on a quiet site they may wait for the next visitor. [WP Crontrol](https://wordpress.org/plugins/wp-crontrol/) shows whether one is pending (`ntrnllnk_rebuild`) and runs it on request; so does WP-CLI, with `wp cron event run ntrnllnk_rebuild`. And if a page cache (from a caching plugin, the host, or a CDN) is in front of the site, it keeps showing the old lists until it gets cleared.
 
 ## How It Works
 
@@ -92,13 +106,15 @@ Scores tend to be small: Two posts on the same subject often score around 0.05�
 
 `score_min` affects only the list of related posts, not in-content links. Raising it drops weak matches, so lists get shorter, and posts without strong matches lose their list. As an example, on one German book blog with about 150 posts, entries below 0.03 were mostly unrelated, those between 0.03 and 0.04 mixed, and most above 0.04 fitting; at 0.04, 11 of the posts had no list, and those with one had about 4 entries. If your lists show unrelated posts, raise `score_min`; if fitting posts are missing, lower it. Even at 0, a post can be without a list, if it shares no words, links, or terms with any other post that count.
 
-A changed `score_min` (like other ranking settings) applies from the next rebuild on, after the next relevant post change, or at the latest the next day.
+A changed `score_min` applies after the next rebuild, about a minute later (see “When Changes Apply”).
+
+To see where to set it, turn on `debug`: Logged-in users who can edit posts then see each listed post’s score, and the share of each signal—like `[score: 0.052 – words 0.031, links 0.021]`. The list then also includes posts that missed `score_min`, down to half of it, struck through (`<del>`), so that posts without a list for visitors may show one. Visitors and other users see neither. Some page caches store pages for logged-in users, too; then, turn `debug` off when done, or check that the cache leaves these users out. The debugging data comes in `.ntrnllnk-debug` to style it.
 
 Stopwords and stems depend on the language. With `language` set to `'auto'`, ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are.
 
-Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in the background (WP-Cron) a minute after a post is published, unpublished, or deleted, after a published post’s title, content, date, or password changes, or after its categories or tags change, and daily as a safety net. A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
+Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in rebuilds (see “When Changes Apply”). A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
 
-Uninstalling the plugin removes its post meta, option, and scheduled events.
+Uninstalling (deleting) the plugin removes its post meta, options, and scheduled events; deactivating it only stops rebuilds, and keeps the data.
 
 ### Performance
 
@@ -109,8 +125,8 @@ The rebuild does notice it, as it compares all posts with each other for the lis
 | Posts | Time | Memory |
 | --- | --- | --- |
 | 1,000 | 2 seconds | 70 MB |
-| 5,000 | 10 seconds | 280 MB |
-| 10,000 | 25 seconds | 520 MB |
+| 5,000 | 10 seconds | 290 MB |
+| 10,000 | 25 seconds | 540 MB |
 
 Up to a few thousand posts, the rebuild fits into the 256 MB that WordPress allows by default. Beyond about 4,000 posts, it may need more: Raise `WP_MAX_MEMORY_LIMIT` (in wp-config.php), or the limit for ntrnllnk alone, via the `ntrnllnk_memory_limit` filter. If PHP’s time limit (`max_execution_time`) is low, a rebuild may also run out of time; then, it doesn’t update related posts, and the previous ones stay. On large sites, it helps to run WP-Cron [via the system’s cron](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/) rather than on page views.
 
