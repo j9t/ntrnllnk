@@ -90,7 +90,7 @@ ntrnllnk works out related posts in the background, in rebuilds, and stores them
 * **Display settings**—“Heading,” “Heading level,” “Placement,” “Priority,” “URLs,” and all settings under “In-Content Links”—apply right away, from the next page view on. So does lowering “Number of related posts,” or setting it to 0.
 * **Ranking settings**—“Number of related posts,” “Minimum score,” “Debugging,” “Post types,” “Language,” and “Weight of words”—decide which posts are related, and apply after the rebuild that saving them starts.
 
-Posts trigger rebuilds, too, a minute after they get published, unpublished, or deleted, or after their title, content, date, password, categories, or tags change. The subjects for in-content links come from these rebuilds as well. Besides, every site gets one rebuild a day.
+Posts trigger rebuilds, too, a minute after they get published, unpublished, or deleted, or after their title, content, date, password, categories, or tags change. The subjects for in-content links come from these rebuilds as well. Updating ntrnllnk starts one with the next view of the admin area. Besides, every site gets one rebuild a day.
 
 Rebuilds run via WP-Cron, which runs on page views; if the site runs WP-Cron [via the system’s cron](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/) instead, how soon a rebuild starts depends on how often that cron runs. And if a page cache (from a caching plugin, the host, or a CDN) is in front of the site, it keeps showing the old lists until it gets cleared.
 

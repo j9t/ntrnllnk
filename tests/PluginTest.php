@@ -230,6 +230,48 @@ final class PluginTest extends TestCase {
 		$this->assertTrue( has_filter( 'the_content', [ Plugin::class, 'render' ], 8 ) );
 	}
 
+	public function test_register_output_skips_content_filters_without_post_types(): void {
+		$this->settings( [ 'post_types' => [] ] );
+		Functions\expect( 'add_shortcode' )->once()->with( 'ntrnllnk', [ Plugin::class, 'shortcode' ] );
+		Plugin::register_output();
+
+		$this->assertFalse( has_filter( 'the_content', [ Plugin::class, 'render' ] ) );
+		$this->assertFalse( has_filter( 'the_content', [ Plugin::class, 'link_content' ] ) );
+	}
+
+	public function test_version_matches_plugin_header(): void {
+		$this->assertMatchesRegularExpression( '/^ \* Version: +' . preg_quote( Plugin::VERSION, '/' ) . '$/m', (string) file_get_contents( dirname( __DIR__ ) . '/ntrnllnk.php' ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reads a local file
+	}
+
+	public function test_rebuild_after_update_rebuilds_soon_after_plugin_update(): void {
+		$this->options[ Plugin::OPTION_REBUILD ] = [ 'version' => '0.9.0' ];
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\when( 'get_transient' )->justReturn( false );
+		$this->expect_rebuild_soon( true );
+		Plugin::rebuild_after_update();
+	}
+
+	public function test_rebuild_after_update_rebuilds_soon_after_rebuilds_without_version(): void {
+		$this->options[ Plugin::OPTION_REBUILD ] = [ 'time' => 1700000000 ];
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\when( 'get_transient' )->justReturn( false );
+		$this->expect_rebuild_soon( true );
+		Plugin::rebuild_after_update();
+	}
+
+	public function test_rebuild_after_update_skips_rebuild_for_current_version(): void {
+		$this->options[ Plugin::OPTION_REBUILD ] = [ 'version' => Plugin::VERSION ];
+		$this->expect_rebuild_soon( false );
+		Plugin::rebuild_after_update();
+	}
+
+	public function test_rebuild_after_update_skips_rebuild_while_one_is_pending_or_running(): void {
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\when( 'get_transient' )->justReturn( true );
+		$this->expect_rebuild_soon( false );
+		Plugin::rebuild_after_update();
+	}
+
 	public function test_settings_merge_stored_settings_over_defaults(): void {
 		$this->settings(
 			[
@@ -281,6 +323,14 @@ final class PluginTest extends TestCase {
 	public function test_html_returns_empty_string_with_count_zero(): void {
 		$this->settings( [ 'count' => 0 ] );
 		Functions\expect( 'get_post_meta' )->never();
+
+		$this->assertSame( '', Plugin::html( 7 ) );
+	}
+
+	public function test_html_returns_empty_string_without_post_types(): void {
+		$this->settings( [ 'post_types' => [] ] );
+		Functions\expect( 'get_post_meta' )->never();
+		Functions\expect( 'get_posts' )->never();
 
 		$this->assertSame( '', Plugin::html( 7 ) );
 	}
@@ -569,6 +619,16 @@ final class PluginTest extends TestCase {
 		$this->assertSame( [], $linked );
 	}
 
+	public function test_link_post_links_nothing_without_post_types(): void {
+		$this->settings( [ 'post_types' => [] ] );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
+		Functions\expect( 'get_posts' )->never();
+		$linked = [ 'stale' => 1 ];
+
+		$this->assertSame( '<p>Agatha Christie</p>', Plugin::link_post( 7, '<p>Agatha Christie</p>', $linked ) );
+		$this->assertSame( [], $linked );
+	}
+
 	public function test_visible_keeps_related_posts_at_minimum_score(): void {
 		$this->assertSame(
 			[ 11 => [ 'words' => 0.04 ] ],
@@ -635,7 +695,7 @@ final class PluginTest extends TestCase {
 			}
 		);
 		Functions\expect( 'delete_post_meta' )->once()->with( 3, Plugin::META_KEY );
-		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::on( fn( array $status ): bool => 3 === $status['posts'] && abs( $status['time'] - time() ) < 5 && $status['duration'] >= 0 ), false );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::on( fn( array $status ): bool => 3 === $status['posts'] && Plugin::VERSION === $status['version'] && abs( $status['time'] - time() ) < 5 && $status['duration'] >= 0 ), false );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], true );
 		Functions\expect( 'wp_set_option_autoload' )->once()->with( Plugin::OPTION_PHRASES, true );
 
@@ -753,6 +813,22 @@ final class PluginTest extends TestCase {
 		Functions\expect( 'delete_post_meta' )->once()->with( 1, Plugin::META_KEY );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::type( 'array' ), false );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], true );
+		Functions\when( 'wp_set_option_autoload' )->justReturn( true );
+
+		Plugin::rebuild();
+	}
+
+	public function test_rebuild_clears_lists_and_phrases_without_post_types(): void {
+		$this->settings( [ 'post_types' => [] ] );
+		// Only the query for stored lists, as WordPress queries posts for an empty post type
+		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'meta_key' => Plugin::META_KEY ] ) )->andReturn( [ 1 ] ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Simulated query
+		$this->expect_rebuild_runs();
+		Functions\when( 'get_object_taxonomies' )->justReturn( [] );
+		Functions\when( 'get_locale' )->justReturn( 'en_US' );
+		Functions\expect( 'update_post_meta' )->never();
+		Functions\expect( 'delete_post_meta' )->once()->with( 1, Plugin::META_KEY );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::on( fn( array $status ): bool => 0 === $status['posts'] ), false );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [], true );
 		Functions\when( 'wp_set_option_autoload' )->justReturn( true );
 
 		Plugin::rebuild();

@@ -18,6 +18,11 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Plugin {
 
+	/**
+	 * Plugin version, as in the plugin header, stored with each rebuild so that updates rebuild right away
+	 */
+	public const VERSION = '1.0.0';
+
 	public const META_KEY = '_ntrnllnk_related';
 
 	public const OPTION_PHRASES = 'ntrnllnk_phrases';
@@ -90,6 +95,7 @@ final class Plugin {
 		add_action( 'delete_term', [ self::class, 'on_delete_term' ], 10, 5 );
 		add_action( 'update_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_saved' ], 10, 2 );
 		add_action( 'add_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_added' ], 10, 2 );
+		add_action( 'admin_init', [ self::class, 'rebuild_after_update' ] );
 
 		Admin::register( $file );
 	}
@@ -99,6 +105,11 @@ final class Plugin {
 	 */
 	public static function register_output(): void {
 		$settings = self::settings();
+		add_shortcode( 'ntrnllnk', [ self::class, 'shortcode' ] );
+		// Checked here, because `is_singular( [] )` matches any post type
+		if ( ! $settings['post_types'] ) {
+			return;
+		}
 		if ( 'auto' === $settings['placement'] ) {
 			add_filter( 'the_content', [ self::class, 'render' ], $settings['priority'] );
 		}
@@ -106,7 +117,6 @@ final class Plugin {
 			// After shortcodes (11), so that their output counts, too
 			add_filter( 'the_content', [ self::class, 'link_content' ], 12 );
 		}
-		add_shortcode( 'ntrnllnk', [ self::class, 'shortcode' ] );
 	}
 
 	/**
@@ -259,6 +269,19 @@ final class Plugin {
 	}
 
 	/**
+	 * Rebuilds right away after a plugin update, which activation hooks miss, unless a rebuild is pending or running
+	 */
+	public static function rebuild_after_update(): void {
+		$rebuild = get_option( self::OPTION_REBUILD );
+		if ( is_array( $rebuild ) && self::VERSION === ( $rebuild['version'] ?? null ) ) {
+			return;
+		}
+		if ( ! wp_next_scheduled( self::HOOK_REBUILD ) && ! get_transient( self::TRANSIENT_LOCK ) ) {
+			self::rebuild_soon();
+		}
+	}
+
+	/**
 	 * Schedules a rebuild for right away, replacing a pending one; WP-Cron starts it on the next request
 	 */
 	public static function rebuild_soon(): void {
@@ -299,7 +322,8 @@ final class Plugin {
 
 		$time     = microtime( true );
 		$settings = self::settings();
-		$ids      = get_posts(
+		// WordPress queries posts for an empty post type
+		$ids = ! $settings['post_types'] ? [] : get_posts(
 			[
 				'post_type'        => $settings['post_types'],
 				'post_status'      => 'publish',
@@ -394,6 +418,7 @@ final class Plugin {
 				'time'     => time(),
 				'duration' => round( microtime( true ) - $time, 1 ),
 				'posts'    => count( $ids ),
+				'version'  => self::VERSION,
 			],
 			false
 		);
@@ -435,7 +460,7 @@ final class Plugin {
 	 */
 	public static function html( int $id ): string {
 		$settings = self::settings();
-		if ( $settings['count'] < 1 ) {
+		if ( $settings['count'] < 1 || ! $settings['post_types'] ) {
 			return '';
 		}
 		$related = array_filter( (array) get_post_meta( $id, self::META_KEY, true ), 'is_array' );
@@ -510,9 +535,14 @@ final class Plugin {
 	 * @param string[]             $signals All signals.
 	 */
 	private static function debugging( array $parts, array $signals ): string {
-		$shares = array_map( fn( string $signal ): string => $signal . ' ' . self::format_score( $parts[ $signal ] ?? 0.0 ), $signals );
+		$labels = [
+			'words' => __( 'words', 'ntrnllnk' ),
+			'links' => __( 'links', 'ntrnllnk' ),
+		];
+		$shares = array_map( fn( string $signal ): string => ( $labels[ $signal ] ?? $signal ) . ' ' . self::format_score( $parts[ $signal ] ?? 0.0 ), $signals );
 
-		return sprintf( '<span class="ntrnllnk-debug">[score: %s – %s]</span>', self::format_score( array_sum( $parts ) ), esc_html( implode( ', ', $shares ) ) );
+		/* translators: 1: Score, 2: Share of each signal */
+		return sprintf( '<span class="ntrnllnk-debug">%s</span>', esc_html( sprintf( __( '[score: %1$s – %2$s]', 'ntrnllnk' ), self::format_score( array_sum( $parts ) ), implode( ', ', $shares ) ) ) );
 	}
 
 	/**
@@ -550,7 +580,7 @@ final class Plugin {
 	public static function link_post( int $id, string $content, array &$linked = [] ): string {
 		$linked   = [];
 		$settings = self::settings();
-		if ( in_array( $id, array_map( 'intval', $settings['links_inline_exclude_posts'] ), true ) ) {
+		if ( ! $settings['post_types'] || in_array( $id, array_map( 'intval', $settings['links_inline_exclude_posts'] ), true ) ) {
 			return $content;
 		}
 
