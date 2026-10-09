@@ -110,11 +110,31 @@ final class AdminTest extends TestCase {
 		$this->assertStringNotContainsString( 'aria-describedby', $this->captured( fn() => Admin::render_field( [ 'key' => 'heading' ] ) ) );
 	}
 
+	public function test_render_page_shows_title_settings_report_and_rebuild_in_order(): void {
+		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'get_transient' )->justReturn( false );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		foreach ( [ 'settings_fields', 'do_settings_sections', 'wp_nonce_field' ] as $function ) {
+			Functions\when( $function )->justReturn( null );
+		}
+		Functions\expect( 'submit_button' )->once()->withNoArgs();
+		// Wrapped like “Save Changes,” for the same spacing
+		Functions\expect( 'submit_button' )->once()->with( 'Rebuild Now', 'secondary', 'submit', true );
+		$page = $this->captured( [ Admin::class, 'render_page' ] );
+
+		$this->assertStringContainsString( '<h1>ntrnllnk—Automatic Internal Linking</h1>', $page );
+		$this->assertStringContainsString( '<p class="submit"><a href="https://example.com/wp-admin/tools.php?page=ntrnllnk-report" class="button">Open Report</a></p>', $page );
+		$this->assertLessThan( strpos( $page, '<h2>Rebuild</h2>' ), strpos( $page, '<h2>Report</h2>' ) );
+	}
+
 	public function test_attribution_links_author_and_project(): void {
 		$attribution = Admin::attribution();
 
-		$this->assertStringContainsString( '<a href="https://meiert.com/">Jens Oliver Meiert</a>', $attribution );
-		$this->assertStringContainsString( '<a href="https://github.com/j9t/ntrnllnk">GitHub</a>', $attribution );
+		$this->assertSame( 'A project by <a href="https://meiert.com/" target="_blank">Jens Oliver Meiert</a> (<a href="https://github.com/j9t/ntrnllnk" target="_blank">contribute and support on GitHub</a>).', $attribution );
+	}
+
+	public function test_render_field_frontloads_debugging_text(): void {
+		$this->assertStringContainsString( '> Show scores of related posts, and posts below the minimum score, to logged-in users (contributors and above)</label>', $this->captured( fn() => Admin::render_field( [ 'key' => 'debug' ] ) ) );
 	}
 
 	public function test_render_field_shows_default_heading_as_placeholder(): void {

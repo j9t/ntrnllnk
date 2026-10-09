@@ -38,8 +38,10 @@ final class Linker {
 	 * @param array<string, string> $urls  Phrases and their target URLs.
 	 * @param int                   $count Maximum number of links.
 	 * @param string                $class_link Class of the links, if any.
+	 * @param array<string, string> $linked Phrases that got linked, with their target URLs, in order.
 	 */
-	public static function link( string $html, array $urls, int $count, string $class_link = '' ): string {
+	public static function link( string $html, array $urls, int $count, string $class_link = '', array &$linked = [] ): string {
+		$linked = [];
 		if ( ! $urls || $count < 1 ) {
 			return $html;
 		}
@@ -65,7 +67,7 @@ final class Linker {
 					$block_linked = false;
 				}
 			} elseif ( 0 === $depth_skip && ! $block_linked && '' !== trim( $token ) ) {
-				$tokens[ $index ] = self::link_text( $token, $urls, $class_link );
+				$tokens[ $index ] = self::link_text( $token, $urls, $class_link, $linked );
 				if ( $tokens[ $index ] !== $token ) {
 					$block_linked = true;
 					--$count;
@@ -99,8 +101,9 @@ final class Linker {
 	 * @param string                $text Text node (HTML-escaped).
 	 * @param array<string, string> $urls  Phrases and their target URLs, longest first.
 	 * @param string                $class_link Class of the link, if any.
+	 * @param array<string, string> $linked Phrases linked so far, with their target URLs.
 	 */
-	private static function link_text( string $text, array &$urls, string $class_link ): string {
+	private static function link_text( string $text, array &$urls, string $class_link, array &$linked ): string {
 		$phrases = [];
 		foreach ( array_keys( $urls ) as $phrase ) {
 			$phrases[ htmlspecialchars( $phrase, ENT_NOQUOTES, 'UTF-8' ) ] = $phrase;
@@ -111,7 +114,9 @@ final class Linker {
 		}
 
 		[ $mention, $offset ] = $match[0];
-		$url                  = $urls[ $phrases[ $match[1][0] ] ];
+		$phrase               = $phrases[ $match[1][0] ];
+		$url                  = $urls[ $phrase ];
+		$linked[ $phrase ]    = $url;
 		$urls                 = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
 
 		$attribute_class = '' === $class_link ? '' : ' class="' . htmlspecialchars( $class_link, ENT_QUOTES, 'UTF-8' ) . '"';

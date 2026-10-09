@@ -30,13 +30,15 @@ final class Admin {
 		add_action( 'admin_init', [ self::class, 'register_settings' ] );
 		add_action( 'admin_post_' . self::ACTION_REBUILD, [ self::class, 'handle_rebuild' ] );
 		add_filter( 'plugin_action_links_' . plugin_basename( $file ), [ self::class, 'add_action_links' ] );
+
+		Report::register();
 	}
 
 	/**
 	 * Adds the settings page to the Settings menu
 	 */
 	public static function add_page(): void {
-		add_options_page( 'ntrnllnk', 'ntrnllnk', self::CAPABILITY, self::SLUG, [ self::class, 'render_page' ] );
+		add_options_page( self::title(), 'ntrnllnk', self::CAPABILITY, self::SLUG, [ self::class, 'render_page' ] );
 	}
 
 	/**
@@ -86,12 +88,16 @@ final class Admin {
 		if ( ! current_user_can( self::CAPABILITY ) ) {
 			return;
 		}
-		echo '<div class="wrap"><h1>ntrnllnk</h1><form action="options.php" method="post">';
+		printf( '<div class="wrap"><h1>%s</h1><form action="options.php" method="post">', esc_html( self::title() ) );
 		settings_fields( self::SLUG );
 		do_settings_sections( self::SLUG );
 		submit_button();
 		printf(
-			'</form><h2>%s</h2><p>%s</p><p>%s</p><form action="%s" method="post"><input type="hidden" name="action" value="%s">',
+			'</form><h2>%s</h2><p>%s</p><p class="submit"><a href="%s" class="button">%s</a></p><h2>%s</h2><p>%s</p><p>%s</p><form action="%s" method="post"><input type="hidden" name="action" value="%s">',
+			esc_html__( 'Report', 'ntrnllnk' ),
+			esc_html__( 'The report shows, for each post, its related posts and the links ntrnllnk adds to its text.', 'ntrnllnk' ),
+			esc_url( admin_url( 'tools.php?page=' . Report::SLUG ) ),
+			esc_html__( 'Open Report', 'ntrnllnk' ),
 			esc_html__( 'Rebuild', 'ntrnllnk' ),
 			esc_html__( 'ntrnllnk works out related posts and the subjects for in-content links in the background, in a rebuild. Changing posts, or saving settings that affect related posts, starts one by itself; this button starts one right away.', 'ntrnllnk' ),
 			esc_html( self::status() ),
@@ -99,19 +105,28 @@ final class Admin {
 			esc_attr( self::ACTION_REBUILD )
 		);
 		wp_nonce_field( self::ACTION_REBUILD );
-		submit_button( __( 'Rebuild Now', 'ntrnllnk' ), 'secondary', 'submit', false );
+		submit_button( __( 'Rebuild Now', 'ntrnllnk' ), 'secondary', 'submit', true );
 		echo '</form><hr><p>' . self::attribution() . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped while built
+	}
+
+	/**
+	 * Returns the title of the settings page
+	 */
+	public static function title(): string {
+		return __( 'ntrnllnk—Automatic Internal Linking', 'ntrnllnk' );
 	}
 
 	/**
 	 * Returns who makes ntrnllnk, and where to find the project
 	 */
 	public static function attribution(): string {
+		$link = fn( string $url, string $text ): string => sprintf( '<a href="%s" target="_blank">%s</a>', esc_url( $url ), esc_html( $text ) );
+
 		return sprintf(
-			/* translators: 1: Author, linked, 2: “GitHub,” linked */
-			esc_html__( 'ntrnllnk is made by %1$s. Support the project on %2$s.', 'ntrnllnk' ),
-			'<a href="' . esc_url( 'https://meiert.com/' ) . '">Jens Oliver Meiert</a>',
-			'<a href="' . esc_url( 'https://github.com/j9t/ntrnllnk' ) . '">GitHub</a>'
+			/* translators: 1: Author, linked, 2: “Contribute and support on GitHub,” linked */
+			esc_html__( 'A project by %1$s (%2$s).', 'ntrnllnk' ),
+			$link( 'https://meiert.com/', 'Jens Oliver Meiert' ),
+			$link( 'https://github.com/j9t/ntrnllnk', __( 'contribute and support on GitHub', 'ntrnllnk' ) )
 		);
 	}
 
@@ -304,7 +319,7 @@ final class Admin {
 				'section' => 'list',
 				'label'   => __( 'Debugging', 'ntrnllnk' ),
 				'type'    => 'checkbox',
-				'text'    => __( 'Show logged-in users who can edit posts the scores behind the list, and posts that just missed the minimum score (struck through)', 'ntrnllnk' ),
+				'text'    => __( 'Show scores of related posts, and posts below the minimum score, to logged-in users (contributors and above)', 'ntrnllnk' ),
 			],
 			'links_inline'                 => [
 				'section' => 'inline',

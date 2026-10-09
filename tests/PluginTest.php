@@ -548,6 +548,43 @@ final class PluginTest extends TestCase {
 		);
 	}
 
+	public function test_link_post_links_any_post_and_reports_targets(): void {
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+		];
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ), $this->post( [ 'ID' => 12 ] ) ] );
+		$linked = [];
+
+		$this->assertSame( '<p><a href="https://example.com/11/">Agatha Christie</a></p>', Plugin::link_post( 7, '<p>Agatha Christie</p>', $linked ) );
+		$this->assertSame( [ 'Agatha Christie' => 11 ], $linked );
+	}
+
+	public function test_link_post_reports_nothing_for_excluded_posts(): void {
+		$this->settings( [ 'links_inline_exclude_posts' => [ 7 ] ] );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
+		$linked                                  = [ 'stale' => 1 ];
+
+		$this->assertSame( '<p>Agatha Christie</p>', Plugin::link_post( 7, '<p>Agatha Christie</p>', $linked ) );
+		$this->assertSame( [], $linked );
+	}
+
+	public function test_visible_keeps_related_posts_at_minimum_score(): void {
+		$this->assertSame(
+			[ 11 => [ 'words' => 0.04 ] ],
+			Plugin::visible(
+				[
+					11 => [ 'words' => 0.04 ],
+					12 => [
+						'words' => 0.02,
+						'links' => 0.019,
+					],
+				],
+				0.04
+			)
+		);
+	}
+
 	public function test_link_content_ignores_links_in_list(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );

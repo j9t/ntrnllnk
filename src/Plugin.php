@@ -441,8 +441,7 @@ final class Plugin {
 		$related = array_filter( (array) get_post_meta( $id, self::META_KEY, true ), 'is_array' );
 		$debug   = $settings['debug'] && $related && current_user_can( 'edit_posts' );
 		if ( ! $debug ) {
-			// Only near misses kept for debugging fall below
-			$related = array_filter( $related, fn( array $parts ): bool => round( array_sum( $parts ), 6 ) >= $settings['score_min'] );
+			$related = self::visible( $related, $settings['score_min'] );
 		}
 		if ( ! $related ) {
 			return '';
@@ -493,17 +492,35 @@ final class Plugin {
 	}
 
 	/**
+	 * Returns the related posts that visitors see, leaving out near misses kept for debugging
+	 *
+	 * @param array<int, array<string, float>> $related   Related post IDs and their weighted similarity per signal.
+	 * @param float                            $score_min Minimum score.
+	 * @return array<int, array<string, float>>
+	 */
+	public static function visible( array $related, float $score_min ): array {
+		return array_filter( $related, fn( array $parts ): bool => round( array_sum( $parts ), 6 ) >= $score_min );
+	}
+
+	/**
 	 * Returns the debugging data of a related post: its score and the share of each signal
 	 *
 	 * @param array<string, float> $parts   Weighted similarity per contributing signal.
 	 * @param string[]             $signals All signals.
 	 */
 	private static function debugging( array $parts, array $signals ): string {
-		$format = fn( float $value ): string => rtrim( rtrim( sprintf( '%.3F', $value ), '0' ), '.' );
-		$score  = round( array_sum( $parts ), 6 );
-		$shares = array_map( fn( string $signal ): string => $signal . ' ' . $format( $parts[ $signal ] ?? 0.0 ), $signals );
+		$shares = array_map( fn( string $signal ): string => $signal . ' ' . self::format_score( $parts[ $signal ] ?? 0.0 ), $signals );
 
-		return sprintf( '<span class="ntrnllnk-debug">[score: %s – %s]</span>', $format( $score ), esc_html( implode( ', ', $shares ) ) );
+		return sprintf( '<span class="ntrnllnk-debug">[score: %s – %s]</span>', self::format_score( array_sum( $parts ) ), esc_html( implode( ', ', $shares ) ) );
+	}
+
+	/**
+	 * Returns a score with up to three decimals, without trailing zeros
+	 *
+	 * @param float $score Score.
+	 */
+	public static function format_score( float $score ): string {
+		return rtrim( rtrim( sprintf( '%.3F', round( $score, 6 ) ), '0' ), '.' );
 	}
 
 	/**
@@ -519,7 +536,19 @@ final class Plugin {
 			return $content;
 		}
 
-		$id = (int) get_the_ID();
+		return self::link_post( (int) get_the_ID(), $content );
+	}
+
+	/**
+	 * Links the first mentions of other posts’ phrases in a post’s content, wherever it is shown
+	 *
+	 * @param int                $id      Post ID.
+	 * @param string             $content Post content, as filtered for display.
+	 * @param array<string, int> $linked  Phrases that got linked, with the IDs of the posts they link to.
+	 */
+	public static function link_post( int $id, string $content, array &$linked = [] ): string {
+		$linked   = [];
+		$settings = self::settings();
 		if ( in_array( $id, array_map( 'intval', $settings['links_inline_exclude_posts'] ), true ) ) {
 			return $content;
 		}
@@ -570,7 +599,13 @@ final class Plugin {
 			}
 		}
 
-		return Linker::link( $content, $urls_phrases, $settings['links_inline_max'], $settings['links_class'] ? 'ntrnllnk-inline' : '' );
+		$urls_linked = [];
+		$content     = Linker::link( $content, $urls_phrases, $settings['links_inline_max'], $settings['links_class'] ? 'ntrnllnk-inline' : '', $urls_linked );
+		foreach ( array_keys( $urls_linked ) as $phrase ) {
+			$linked[ $phrase ] = (int) $phrases[ $phrase ];
+		}
+
+		return $content;
 	}
 
 	/**

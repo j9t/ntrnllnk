@@ -6,7 +6,7 @@ ntrnllnk is a WordPress plugin for automatic internal linking. It finds related 
 
 ## Usage
 
-Install and activate the plugin. A minute after activation, it computes related posts for all published posts; from then on, it keeps them up to date by itself. Its settings are under Settings → ntrnllnk.
+Install and activate the plugin. A minute after activation, it computes related posts for all published posts; from then on, it keeps them up to date by itself. Its settings are under _Settings_ → _ntrnllnk_.
 
 ntrnllnk appends its list to the content of single posts:
 
@@ -14,13 +14,13 @@ ntrnllnk appends its list to the content of single posts:
 <section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="…">…</a></li>…</ul></section>
 ```
 
-The list includes only posts that are related closely enough, as set by “Minimum score” (see “Scores”), so it may be shorter than “Number of related posts.” A post without any such posts gets no list at all.
+The list includes only posts related closely enough (see “Scores”), so it may be shorter than set, or missing.
 
-It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it. With “Class” (under “In-Content Links”), in-content links get the class `ntrnllnk-inline`, to style or track them without touching posts. To change the markup, use the `ntrnllnk_html` filter, which receives the HTML, the related posts, and the ID of the post they relate to.
+It ships without styles, so that the list looks like the rest of the content; `.ntrnllnk` is there to style it. To change the markup, use the `ntrnllnk_html` filter, which receives the HTML, the related posts, and the ID of the post they relate to.
 
 ### Placement
 
-By default, the list follows the content, as part of it (“Placement”: “After the content”). Other plugins may append things to the content, too, like ratings or share buttons; “Priority” decides the order: the lower, the earlier ntrnllnk adds its list, and the further up it shows. (WordPress’s `the_content` filter runs in order of priority; ntrnllnk uses 20.)
+By default, the list follows the content, as part of it. If other plugins append things, too, like ratings or share buttons, “Priority” decides the order: the lower, the further up the list shows.
 
 To place the list yourself, set “Placement” to “Manual,” and use either
 
@@ -31,15 +31,13 @@ The shortcode also works with automatic placement: ntrnllnk then doesn’t appen
 
 ### In-Content Links
 
-Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most three such links per post (by default; see “Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
+Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most three such links per post (“Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
 
 The text never links to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it, in whatever form (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
 
 What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German), that the post’s own text mentions at least three times. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christies,” “Agatha Christie’s”).
 
-In-content links are added when a post is shown, not saved to it, so turning them off (“In-content links”) removes them all. To keep particular links out instead, exclude phrases (“Excluded phrases”) or posts (“Excluded posts”); for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases. All of this applies immediately.
-
-To use in-content links without the list, set “Number of related posts” to 0; this also saves most of the work in the background (see “Performance”).
+In-content links are added when a post is shown, not saved to it, so turning them off removes them all. To keep particular links out, use “Excluded phrases” or “Excluded posts”; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
 
 ### Settings
 
@@ -52,7 +50,7 @@ The settings page, under Settings → ntrnllnk, needs the `manage_options` capab
 | Heading | “Further reading” (translated) | Heading of the list |
 | Heading level | h2 | Heading level (h2–h6), or “Automatic” for the highest level in the post’s content (or h2 without headings), so that the list sits at the level of the content’s top sections |
 | Minimum score | 0.04 | How closely posts need to be related (0–1) to show; posts with fewer matches show fewer related posts, or no list at all (see “Scores”) |
-| Debugging | Off | Whether to show logged-in users who can edit posts (contributors and up) the scores behind the list, and posts that just missed “Minimum score” (see “Scores”) |
+| Debugging | Off | Whether to show scores of related posts, and posts below “Minimum score,” to logged-in users (contributors and above; see “Scores”) |
 | **In-Content Links** | | |
 | In-content links | On | Whether to link mentions of other posts’ subjects in the text |
 | Maximum per post | 3 | Maximum number of in-content links per post |
@@ -67,11 +65,21 @@ The settings page, under Settings → ntrnllnk, needs the `manage_options` capab
 | Language | Detect per post | Language of the content: detected per post, or German or English for all posts |
 | Weight of words | 0.6 | How much shared words count, compared with shared links, which get the rest (0.4 by default) |
 
+### Report
+
+The report, under _Tools_ → _ntrnllnk_, shows for each post:
+
+* **Related posts:** its list, with scores; posts below “Minimum score,” which visitors don’t see, are collapsed below it
+* **In-content links:** the links ntrnllnk adds to its text, as phrase and target
+* **Listed by:** how many other posts’ lists include it
+
+“No list” and “Never listed” filter for posts without a list and posts no list includes—candidates for better linking. In-content links aren’t stored, so the report works them out for the 20 posts on each page as it opens; depending on what other plugins do with the content, this may take a moment. Like the settings page, the report needs the `manage_options` capability.
+
 ### When Changes Apply
 
 **To apply changed settings, save them; a rebuild starts with the next page view, which is the settings page reloading after saving.** It takes a few seconds on most sites (see “Performance”). Under “Rebuild,” the settings page shows whether one is running and when the last one finished; “Rebuild Now” starts one right away, without changing anything.
 
-ntrnllnk doesn’t work out related posts when showing a post, but in the background, in a rebuild, and stores them. That’s why settings take effect at different times:
+ntrnllnk works out related posts in the background, in rebuilds, and stores them; that’s why settings take effect at different times:
 
 * **Display settings**—“Heading,” “Heading level,” “Placement,” “Priority,” “URLs,” and all settings under “In-Content Links”—apply right away, from the next page view on. So does lowering “Number of related posts,” or setting it to 0.
 * **Ranking settings**—“Number of related posts,” “Minimum score,” “Debugging,” “Post types,” “Language,” and “Weight of words”—decide which posts are related, and apply after the rebuild that saving them starts.
@@ -95,9 +103,7 @@ Scores tend to be small: Two posts on the same subject often score around 0.05�
 
 “Minimum score” affects only the list of related posts, not in-content links. Raising it drops weak matches, so lists get shorter, and posts without strong matches lose their list. As an example, on one German book blog with about 150 posts, entries below 0.03 were mostly unrelated, those between 0.03 and 0.04 mixed, and most above 0.04 fitting; at 0.04, 11 of the posts had no list, and those with one had about 4 entries. If your lists show unrelated posts, raise “Minimum score”; if fitting posts are missing, lower it. Even at 0, a post can be without a list, if it shares no words, links, or terms with any other post that count.
 
-A changed “Minimum score” applies after the rebuild that saving it starts (see “When Changes Apply”).
-
-To see where to set it, turn on “Debugging”: Logged-in users who can edit posts then see each listed post’s score, and the share of each signal—like `[score: 0.052 – words 0.031, links 0.021]`. The list then also includes posts that missed “Minimum score,” down to half of it, struck through (`<del>`), so that posts without a list for visitors may show one. Visitors and other users see neither. Some page caches store pages for logged-in users, too; then, turn “Debugging” off when done, or check that the cache leaves these users out. The debugging data comes in `.ntrnllnk-debug` to style it.
+To see where to set it, turn on “Debugging”: Logged-in users (contributors and above) then see each listed post’s score, and the share of each signal—like `[score: 0.052 – words 0.031, links 0.021]`. The list then also includes posts that missed “Minimum score,” down to half of it, struck through (`<del>`), so that posts without a list for visitors may show one. Visitors and other users see neither. Some page caches store pages for logged-in users, too; then, turn “Debugging” off when done, or check that the cache leaves these users out. The debugging data comes in `.ntrnllnk-debug` to style it.
 
 Stopwords and stems depend on the language. With “Language” set to “Detect per post,” ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are.
 
@@ -133,11 +139,11 @@ composer build     # Plugin files into dist/
 composer bench     # Time and memory of a rebuild
 ```
 
-The classes in `src/` other than `Plugin.php` and `Admin.php` don’t call WordPress. `Plugin.php` connects them to WordPress, and `Admin.php` adds the settings page; their tests simulate WordPress with [Brain Monkey](https://github.com/Brain-WP/BrainMonkey).
+The classes in `src/` other than `Plugin.php`, `Admin.php`, and `Report.php` don’t call WordPress. `Plugin.php` connects them to WordPress, `Admin.php` adds the settings page, and `Report.php` the report; their tests simulate WordPress with [Brain Monkey](https://github.com/Brain-WP/BrainMonkey).
 
 ### Building
 
-`composer build` puts what belongs on a server into `dist/`: the plugin folder, `dist/ntrnllnk/`, to copy into `wp-content/plugins/`, and `dist/ntrnllnk.zip`, to upload via Plugins → Add New Plugin → Upload Plugin. It builds from the working copy, including uncommitted changes, and leaves out what `.gitignore` ignores and what `.gitattributes` marks `export-ignore`. It then checks the result: the main plugin file is there, no development files are, and all PHP files parse.
+`composer build` puts what belongs on a server into `dist/`: the plugin folder, `dist/ntrnllnk/`, to copy into `wp-content/plugins/`, and `dist/ntrnllnk.zip`, to upload via _Plugins_ → _Add New Plugin_ → _Upload Plugin_. It builds from the working copy, including uncommitted changes, and leaves out what `.gitignore` ignores and what `.gitattributes` marks `export-ignore`. It then checks the result: the main plugin file is there, no development files are, and all PHP files parse.
 
 `dist/` is generated, so don’t edit it; rebuild before every deployment.
 
