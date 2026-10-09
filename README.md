@@ -11,7 +11,13 @@ Install and activate the plugin. A minute after activation, it computes related 
 ntrnllnk appends its list to the content of single posts:
 
 ```html
-<section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="…">…</a></li>…</ul></section>
+<section class="ntrnllnk">
+  <h2>Further reading</h2>
+  <ul>
+    <li><a href="…">…</a></li>
+    …
+  </ul>
+</section>
 ```
 
 The list includes only posts related closely enough (see “Scores”), so it may be shorter than set, or missing.
@@ -33,9 +39,9 @@ The shortcode also works with automatic placement: ntrnllnk then doesn’t appen
 
 Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “Agatha Christie in the Right Order.” It adds at most three such links per post (“Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
 
-The text never links to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it, in whatever form (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
+The text never links to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
 
-What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German), that the post’s own text mentions at least three times. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christies,” “Agatha Christie’s”).
+What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German), that the post’s own text mentions at least three times. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christie’s”).
 
 In-content links are added when a post is shown, not saved to it, so turning them off removes them all. To keep particular links out, use “Excluded phrases” or “Excluded posts”; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
 
