@@ -4,20 +4,8 @@ All notable changes to ntrnllnk are documented in this file, which is (mostly) A
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-10-09
 
 ### Added
 
-* Added a “Further reading” list of related posts after the content of each post, based on shared words, links, and terms
-* Added German and English support, with the language detected per post
-* Added the `ntrnllnk_settings` filter for post types, count, heading, heading level, language, signal weights, and minimum score
-* Added the settings `heading_level` (including `'auto'`), `urls` (absolute or relative), `placement` (automatic or manual), and `priority`
-* Added the `[ntrnllnk]` shortcode and the `ntrnllnk_render()` template function for manual placement
-* Added the `ntrnllnk_html` filter for the list’s markup
-* Added in-content links (`links_inline`, on by default, and `links_inline_max`), linking the first mention of another post’s subject, at most once per paragraph and never twice to the same post
-* Added `links_inline_exclude_phrases`, `links_inline_exclude_posts`, and the `ntrnllnk_phrases` filter to control in-content links
-* Added a German translation
-* Added background rebuilds that scale to large sites: posts load in batches, ranking skips words and links in more than 500 posts, rebuilds don’t overlap, and edits trigger them only when they affect related posts
-* Added `count` `0` to turn off the list, which also skips ranking in rebuilds, for sites that want only in-content links
-* Added `composer bench`, which measures the time and memory of a rebuild, on generated or exported posts
-* Added `links_class` to give in-content links the class `ntrnllnk-inline`
+* Released initial version

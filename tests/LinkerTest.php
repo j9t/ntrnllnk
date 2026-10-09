@@ -24,6 +24,19 @@ final class LinkerTest extends TestCase {
 		);
 	}
 
+	public function test_link_reports_linked_phrases(): void {
+		$linked = [];
+		Linker::link( '<p>Agatha Christie</p><p>Harry Potter and Agatha Christie</p>', self::URLS + [ 'Stephen King' => '/king/' ], 3, '', $linked );
+
+		$this->assertSame(
+			[
+				'Agatha Christie' => '/christie/',
+				'Harry Potter'    => '/potter/',
+			],
+			$linked
+		);
+	}
+
 	public function test_link_skips_headings_links_and_code(): void {
 		$html = '<h2>Agatha Christie</h2><p><a href="/x/">Agatha Christie</a> <code>Agatha Christie</code> <pre>Agatha Christie</pre></p><p>Agatha Christie</p>';
 

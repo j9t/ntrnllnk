@@ -146,7 +146,24 @@ final class RankerTest extends TestCase {
 			5
 		);
 
-		$this->assertEqualsWithDelta( 1.0, $related[1][2], 0.0001 );
+		$this->assertEqualsWithDelta( 1.0, array_sum( $related[1][2] ), 0.0001 );
+	}
+
+	public function test_related_returns_weighted_similarity_per_contributing_signal(): void {
+		$ranker  = new Ranker();
+		$related = $ranker->related(
+			[
+				$this->document( 1, [ 'dragon', 'magic' ], [ 'x.org' ] ),
+				$this->document( 2, [ 'dragon', 'magic' ], [ 'x.org' ] ),
+				$this->document( 3, [ 'dragon', 'magic' ], [ 'y.org' ] ),
+				$this->document( 4, [ 'cooking' ], [ 'y.org' ] ),
+			],
+			5
+		);
+
+		$this->assertSame( [ 'words', 'links' ], array_keys( $related[1][2] ) );
+		$this->assertEqualsWithDelta( 0.4, $related[1][2]['links'], 0.0001 );
+		$this->assertSame( [ 'words' ], array_keys( $related[1][3] ) );
 	}
 
 	public function test_related_ignores_features_shared_by_too_many_documents(): void {
