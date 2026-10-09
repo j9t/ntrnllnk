@@ -365,7 +365,7 @@ final class PluginTest extends TestCase {
 		Functions\expect( 'current_user_can' )->with( 'edit_posts' )->andReturn( true );
 
 		$this->assertSame(
-			'<section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="https://example.com/11/"></a> <span class="ntrnllnk-debug">[score: 0.052 – words 0.031, links 0.021]</span></li><li><del title="Below score_min (0.04), so not shown to visitors"><a href="https://example.com/12/"></a></del> <span class="ntrnllnk-debug">[score: 0.03 – words 0, links 0.03]</span></li><li><a href="https://example.com/13/"></a> <span class="ntrnllnk-debug">[score: 0.1 – words 0.1, links 0]</span></li></ul></section>',
+			'<section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="https://example.com/11/"></a> <span class="ntrnllnk-debug">[score: 0.052 – words 0.031, links 0.021]</span></li><li><del title="Below the minimum score (0.04), so not shown to visitors"><a href="https://example.com/12/"></a></del> <span class="ntrnllnk-debug">[score: 0.03 – words 0, links 0.03]</span></li><li><a href="https://example.com/13/"></a> <span class="ntrnllnk-debug">[score: 0.1 – words 0.1, links 0]</span></li></ul></section>',
 			Plugin::html( 7 )
 		);
 	}

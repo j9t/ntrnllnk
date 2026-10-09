@@ -474,7 +474,8 @@ final class Plugin {
 				$parts     = $related[ $post->ID ] ?? [];
 				$debugging = ' ' . self::debugging( $parts, array_keys( Ranker::WEIGHTS ) );
 				if ( round( array_sum( $parts ), 6 ) < $settings['score_min'] ) {
-					$link = sprintf( '<del title="%s">%s</del>', esc_attr( sprintf( 'Below score_min (%s), so not shown to visitors', $settings['score_min'] ) ), $link );
+					/* translators: %s: Minimum score */
+					$link = sprintf( '<del title="%s">%s</del>', esc_attr( sprintf( __( 'Below the minimum score (%s), so not shown to visitors', 'ntrnllnk' ), self::format_score( $settings['score_min'] ) ) ), $link );
 				}
 			}
 			$items .= sprintf( '<li>%s%s</li>', $link, $debugging );

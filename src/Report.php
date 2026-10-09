@@ -89,7 +89,7 @@ final class Report {
 			return;
 		}
 
-		$related  = self::related_all();
+		$related  = self::related_all( $settings['post_types'] );
 		$index    = self::index( $related, $settings['score_min'] );
 		$excluded = [
 			''             => [],
@@ -337,11 +337,14 @@ final class Report {
 	}
 
 	/**
-	 * Returns the stored related posts of all posts, in one query
+	 * Returns the stored related posts of all posts the report covers, in one query
 	 *
+	 * Lists of posts that are no longer published, protected, or of a covered type are left out, as they stay stored until the next rebuild.
+	 *
+	 * @param string[] $post_types Post types.
 	 * @return array<int, mixed>
 	 */
-	private static function related_all(): array {
+	public static function related_all( array $post_types ): array {
 		global $wpdb;
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- One query for all lists, instead of one per post, on an admin page only
 		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s", Plugin::META_KEY ) );
@@ -350,8 +353,17 @@ final class Report {
 		foreach ( (array) $rows as $row ) {
 			$related[ (int) $row->post_id ] = maybe_unserialize( $row->meta_value );
 		}
+		$ids = get_posts(
+			[
+				'post_type'      => $post_types,
+				'post_status'    => 'publish',
+				'has_password'   => false,
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
+			]
+		);
 
-		return $related;
+		return array_intersect_key( $related, array_flip( array_map( 'intval', $ids ) ) );
 	}
 
 	/**

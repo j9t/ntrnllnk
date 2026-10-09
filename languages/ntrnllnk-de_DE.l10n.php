@@ -73,6 +73,7 @@ return [
 		'Open Report' => 'Bericht öffnen',
 		'For each post: its related posts, the links ntrnllnk adds to its text, and how many lists include it. In-content links are worked out for the posts on this page as you open it, so it may take a moment.' => 'Für jeden Beitrag: seine verwandten Beiträge, die Links, die ntrnllnk in seinen Text einfügt, und wie viele Listen ihn enthalten. Links im Text werden beim Öffnen für die Beiträge auf dieser Seite ermittelt, daher kann es einen Moment dauern.',
 		'Below the minimum score (%s)' => 'Unter dem Mindestwert (%s)',
+		'Below the minimum score (%s), so not shown to visitors' => 'Unter dem Mindestwert (%s), daher für Besucher nicht sichtbar',
 		'First page' => 'Erste Seite',
 		'Previous page' => 'Vorherige Seite',
 		'Current page' => 'Aktuelle Seite',

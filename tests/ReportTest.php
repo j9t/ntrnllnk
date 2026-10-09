@@ -108,6 +108,50 @@ final class ReportTest extends TestCase {
 		);
 	}
 
+	public function test_related_all_keeps_lists_of_eligible_posts_only(): void {
+		global $wpdb;
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Simulates the database
+		$wpdb = new class() {
+
+			public string $postmeta = 'wp_postmeta';
+
+			public function prepare( string $query, string $value ): string {
+				return str_replace( '%s', "'" . $value . "'", $query );
+			}
+
+			/**
+			 * Returns stored lists of an eligible and an ineligible post
+			 *
+			 * @return object[]
+			 */
+			public function get_results(): array {
+				return [
+					(object) [
+						'post_id'    => '1',
+						'meta_value' => [ 2 => [ 'words' => 0.05 ] ], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Simulated row
+					],
+					(object) [
+						'post_id'    => '9',
+						'meta_value' => [ 2 => [ 'words' => 0.05 ] ], // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Simulated row
+					],
+				];
+			}
+		};
+		Functions\when( 'maybe_unserialize' )->returnArg();
+		Functions\expect( 'get_posts' )->once()->with(
+			Mockery::subset(
+				[
+					'post_type'    => [ 'post' ],
+					'post_status'  => 'publish',
+					'has_password' => false,
+					'fields'       => 'ids',
+				]
+			)
+		)->andReturn( [ 1, 2 ] );
+
+		$this->assertSame( [ 1 ], array_keys( Report::related_all( [ 'post' ] ) ) );
+	}
+
 	public function test_index_counts_lists_with_each_post_and_finds_posts_with_list(): void {
 		$index = Report::index(
 			[
