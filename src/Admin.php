@@ -109,7 +109,7 @@ final class Admin {
 	public static function attribution(): string {
 		return sprintf(
 			/* translators: 1: Author, linked, 2: “GitHub,” linked */
-			esc_html__( 'ntrnllnk is made by %1$s. Find the project, report issues, and contribute on %2$s.', 'ntrnllnk' ),
+			esc_html__( 'ntrnllnk is made by %1$s. Support the project on %2$s.', 'ntrnllnk' ),
 			'<a href="' . esc_url( 'https://meiert.com/' ) . '">Jens Oliver Meiert</a>',
 			'<a href="' . esc_url( 'https://github.com/j9t/ntrnllnk' ) . '">GitHub</a>'
 		);
