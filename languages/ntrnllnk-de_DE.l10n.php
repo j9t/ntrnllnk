@@ -38,7 +38,7 @@ return [
 		'Maximum per post' => 'Höchstens pro Beitrag',
 		'Single words' => 'Einzelne Wörter',
 		'Also link single words from titles, like product or person names' => 'Auch einzelne Wörter aus Titeln verlinken, etwa Produkt- oder Personennamen',
-		'More links, though some may miss: check the report, and exclude phrases as needed.' => 'Mehr Links, von denen manche danebenliegen können: Prüfe den Bericht und schließe Begriffe bei Bedarf aus.',
+		'More links, though some may miss: Check the report, and exclude phrases as needed.' => 'Mehr Links, von denen manche danebenliegen können: Prüfe den Bericht und schließe Begriffe bei Bedarf aus.',
 		'Excluded phrases' => 'Ausgeschlossene Begriffe',
 		'Phrases never to link, one per line.' => 'Begriffe, die nie verlinkt werden, einer pro Zeile.',
 		'Excluded posts' => 'Ausgeschlossene Beiträge',

@@ -198,7 +198,7 @@ final class AdminTest extends TestCase {
 	}
 
 	public function test_add_styles_marks_advanced_settings_as_expandable(): void {
-		Functions\expect( 'wp_add_inline_style' )->once()->with( 'common', Mockery::pattern( '/\.ntrnllnk-advanced > summary \{[^}]*cursor: pointer/' ) );
+		Functions\expect( 'wp_add_inline_style' )->once()->with( 'common', Mockery::pattern( '/\.ntrnllnk-advanced > summary \{[^}]*cursor: pointer; font-size: 14px; font-weight: 600; \} \.ntrnllnk-advanced:not\(\[open\]\) \{ padding-bottom: 20px; \}/' ) );
 
 		Admin::add_styles();
 	}

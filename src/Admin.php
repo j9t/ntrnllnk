@@ -55,8 +55,8 @@ final class Admin {
 	 * Adds the settings page’s styles to WordPress’s admin styles
 	 */
 	public static function add_styles(): void {
-		// Like the labels of the fields, for the summary to read as a control
-		wp_add_inline_style( 'common', '.ntrnllnk-advanced > summary { cursor: pointer; font-weight: 600; }' );
+		// Like the fields’ labels (`.form-table th`), for the summary to read as a control, and, collapsed, to be padded like their rows
+		wp_add_inline_style( 'common', '.ntrnllnk-advanced > summary { cursor: pointer; font-size: 14px; font-weight: 600; } .ntrnllnk-advanced:not([open]) { padding-bottom: 20px; }' );
 	}
 
 	/**
@@ -479,7 +479,7 @@ final class Admin {
 				'label'       => __( 'Single words', 'ntrnllnk' ),
 				'type'        => 'checkbox',
 				'text'        => __( 'Also link single words from titles, like product or person names', 'ntrnllnk' ),
-				'description' => __( 'More links, though some may miss: check the report, and exclude phrases as needed.', 'ntrnllnk' ),
+				'description' => __( 'More links, though some may miss: Check the report, and exclude phrases as needed.', 'ntrnllnk' ),
 			],
 			'links_inline_exclude_phrases' => [
 				'section'     => 'inline',
