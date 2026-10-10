@@ -58,6 +58,21 @@ final class PhrasesTest extends TestCase {
 		);
 	}
 
+	public function test_mentions_skips_phrases_whose_first_word_is_capitalized_only_for_starting_the_title(): void {
+		$this->assertSame( [], Phrases::mentions( 'Is Web3 dead?', 'Is Web3 dead? Many say it is. Is Web3 dead? Is Web3 dead?' ) );
+	}
+
+	public function test_mentions_skips_phrases_whose_first_word_is_capitalized_only_for_following_a_colon(): void {
+		$this->assertSame(
+			[ 'AI Agents' => 1 ],
+			Phrases::mentions( 'A guide: Building AI Agents', 'Building AI Agents is fun, and we enjoy building them.' )
+		);
+	}
+
+	public function test_mentions_keeps_names_starting_the_title(): void {
+		$this->assertSame( [ 'Stephen King' => 1 ], Phrases::mentions( 'Stephen King: the best books', 'Stephen King is a king of horror.' ) );
+	}
+
 	public function test_extract_maps_topical_phrases_to_their_posts(): void {
 		$phrases = Phrases::extract(
 			[
@@ -121,5 +136,58 @@ final class PhrasesTest extends TestCase {
 		);
 
 		$this->assertSame( [ 'Harry Potter' => 2 ], $phrases );
+	}
+
+	public function test_mentions_counts_single_words_on_request(): void {
+		$this->assertSame(
+			[ 'Mistral' => 3 ],
+			Phrases::mentions( 'What makes Mistral so interesting?', 'Mistral is French. Mistral’s models … We like Mistral.', true )
+		);
+		$this->assertSame( [], Phrases::mentions( 'What makes Mistral so interesting?', 'Mistral, Mistral, Mistral' ) );
+	}
+
+	public function test_mentions_skips_single_words_with_fewer_than_three_letters(): void {
+		$this->assertArrayNotHasKey( 'US', Phrases::mentions( 'Moving beyond US solutions', 'US, US, US.', true ) );
+	}
+
+	public function test_mentions_counts_no_mentions_of_single_words_starting_the_title(): void {
+		$this->assertSame( [ 'Claude' => 0 ], Phrases::mentions( 'Claude: why to switch', 'Claude, Claude, Claude.', true ) );
+	}
+
+	public function test_mentions_counts_no_mentions_of_single_words_the_text_uses_in_lowercase(): void {
+		$this->assertSame(
+			[
+				'Right Order' => 0,
+				'Right'       => 0,
+				'Order'       => 0,
+			],
+			Phrases::mentions( 'The Right Order', 'Right here, right now, in the right order.', true )
+		);
+	}
+
+	public function test_extract_drops_single_words_from_several_titles(): void {
+		$text    = 'Web3, Web3, Web3';
+		$phrases = Phrases::extract(
+			[
+				1 => Phrases::mentions( 'The state of Web3', $text, true ),
+				2 => Phrases::mentions( 'Our thoughts on Web3', $text, true ),
+				3 => Phrases::mentions( 'Why switch to Claude', 'Claude, Claude, Claude', true ),
+			]
+		);
+
+		$this->assertSame( [ 'Claude' => 3 ], $phrases );
+	}
+
+	public function test_extract_drops_single_words_from_titles_that_do_not_qualify_them(): void {
+		$phrases = Phrases::extract(
+			[
+				1 => Phrases::mentions( 'What makes Mistral so interesting?', 'Mistral, Mistral, Mistral', true ),
+				2 => Phrases::mentions( 'Why we chose Mistral', 'A mistral is a wind.', true ),
+				3 => Phrases::mentions( 'Why switch to Claude', 'Claude, Claude, Claude', true ),
+				4 => Phrases::mentions( 'Claude vs. ChatGPT', 'Both are good.', true ),
+			]
+		);
+
+		$this->assertSame( [], $phrases );
 	}
 }

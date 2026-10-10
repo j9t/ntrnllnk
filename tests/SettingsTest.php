@@ -37,6 +37,7 @@ final class SettingsTest extends TestCase {
 		$this->assertTrue( $settings['debug'] );
 		$this->assertFalse( $settings['links_inline'] );
 		$this->assertFalse( $settings['links_class'] );
+		$this->assertFalse( $settings['links_inline_single_words'] );
 	}
 
 	public function test_sanitize_keeps_available_post_types_only(): void {
@@ -135,8 +136,9 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( [ 'post' ], Settings::merge( false )['post_types'] );
 	}
 
-	public function test_ranking_returns_settings_that_decide_related_posts(): void {
-		$this->assertSame( Settings::RANKING, array_keys( Settings::ranking( Settings::DEFAULTS ) ) );
+	public function test_rebuilding_returns_settings_that_decide_related_posts_and_phrases(): void {
+		$this->assertSame( Settings::REBUILD, array_keys( Settings::rebuilding( Settings::DEFAULTS ) ) );
+		$this->assertContains( 'links_inline_single_words', Settings::REBUILD );
 	}
 
 	public function test_defaults_use_ranker_weights(): void {

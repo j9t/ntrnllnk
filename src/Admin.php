@@ -38,7 +38,25 @@ final class Admin {
 	 * Adds the settings page to the Settings menu
 	 */
 	public static function add_page(): void {
-		add_options_page( self::title(), 'ntrnllnk', self::CAPABILITY, self::SLUG, [ self::class, 'render_page' ] );
+		$hook = add_options_page( self::title(), 'ntrnllnk', self::CAPABILITY, self::SLUG, [ self::class, 'render_page' ] );
+		if ( $hook ) {
+			add_action( 'load-' . $hook, [ self::class, 'load' ] );
+		}
+	}
+
+	/**
+	 * Prepares loading the settings page
+	 */
+	public static function load(): void {
+		add_action( 'admin_enqueue_scripts', [ self::class, 'add_styles' ] );
+	}
+
+	/**
+	 * Adds the settings page’s styles to WordPress’s admin styles
+	 */
+	public static function add_styles(): void {
+		// Like the fields’ labels (`.form-table th`), for the summary to read as a control, and, collapsed, to be padded like their rows
+		wp_add_inline_style( 'common', '.ntrnllnk-advanced > summary { cursor: pointer; font-size: 14px; font-weight: 600; } .ntrnllnk-advanced:not([open]) { padding-bottom: 20px; }' );
 	}
 
 	/**
@@ -54,14 +72,6 @@ final class Admin {
 				'default'           => [],
 			]
 		);
-		$sections = [
-			'list'     => __( 'Related Posts', 'ntrnllnk' ),
-			'inline'   => __( 'In-Content Links', 'ntrnllnk' ),
-			'advanced' => __( 'Advanced', 'ntrnllnk' ),
-		];
-		foreach ( $sections as $section => $title ) {
-			add_settings_section( 'ntrnllnk_' . $section, $title, '__return_null', self::SLUG );
-		}
 		foreach ( self::fields() as $key => $field ) {
 			$args = [ 'key' => $key ];
 			if ( 'post_types' !== $key ) {
@@ -78,7 +88,13 @@ final class Admin {
 	 * @return array<string, mixed>
 	 */
 	public static function sanitize( mixed $input ): array {
-		return Settings::sanitize( is_array( $input ) ? $input : [], array_keys( self::post_types() ) );
+		$input = is_array( $input ) ? $input : [];
+		// Resetting discards the form’s values
+		if ( ! empty( $input['reset'] ) ) {
+			$input = Settings::DEFAULTS;
+		}
+
+		return Settings::sanitize( $input, array_keys( self::post_types() ) );
 	}
 
 	/**
@@ -90,8 +106,24 @@ final class Admin {
 		}
 		printf( '<div class="wrap"><h1>%s</h1><form action="options.php" method="post">', esc_html( self::title() ) );
 		settings_fields( self::SLUG );
-		do_settings_sections( self::SLUG );
-		submit_button();
+		self::render_sections();
+		echo '<p class="submit">';
+		// Empty, for WordPress’s “Save Changes”
+		submit_button( '', 'primary', 'submit', false );
+		echo ' ';
+		submit_button(
+			__( 'Reset to Defaults', 'ntrnllnk' ),
+			'secondary',
+			Plugin::OPTION_SETTINGS . '[reset]',
+			false,
+			[
+				'id'             => 'ntrnllnk-reset',
+				// Also with invalid values in the form
+				'formnovalidate' => 'formnovalidate',
+				'onclick'        => 'return confirm(' . wp_json_encode( __( 'Reset all settings to their defaults?', 'ntrnllnk' ) ) . ');',
+			]
+		);
+		echo '</p>';
 		printf(
 			'</form><h2>%s</h2><p>%s</p><p class="submit"><a href="%s" class="button">%s</a></p><h2>%s</h2><p>%s</p><p>%s</p><form action="%s" method="post"><input type="hidden" name="action" value="%s">',
 			esc_html__( 'Report', 'ntrnllnk' ),
@@ -107,6 +139,40 @@ final class Admin {
 		wp_nonce_field( self::ACTION_REBUILD );
 		submit_button( __( 'Rebuild Now', 'ntrnllnk' ), 'secondary', 'submit', true );
 		echo '</form><hr><p>' . self::attribution() . '</p></div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped while built
+	}
+
+	/**
+	 * Outputs the sections with their fields, each section’s advanced fields collapsed
+	 */
+	private static function render_sections(): void {
+		$sections_fields = array_column( self::fields(), 'section' );
+		$table           = function ( string $section ): void {
+			echo '<table class="form-table" role="presentation">';
+			do_settings_fields( self::SLUG, 'ntrnllnk_' . $section );
+			echo '</table>';
+		};
+		foreach ( self::sections() as $section => $title ) {
+			printf( '<h2>%s</h2>', esc_html( $title ) );
+			$table( $section );
+			if ( in_array( $section . '_advanced', $sections_fields, true ) ) {
+				printf( '<details class="ntrnllnk-advanced"><summary>%s</summary>', esc_html__( 'Advanced', 'ntrnllnk' ) );
+				$table( $section . '_advanced' );
+				echo '</details>';
+			}
+		}
+	}
+
+	/**
+	 * Returns the sections, with their titles; fields of a section’s `_advanced` part show collapsed below it
+	 *
+	 * @return array<string, string>
+	 */
+	private static function sections(): array {
+		return [
+			'list'    => __( 'Related Posts', 'ntrnllnk' ),
+			'inline'  => __( 'In-Content Links', 'ntrnllnk' ),
+			'general' => __( 'General', 'ntrnllnk' ),
+		];
 	}
 
 	/**
@@ -142,11 +208,12 @@ final class Admin {
 		$value    = $settings[ $key ];
 		$id       = 'ntrnllnk-' . $key;
 		$name     = Plugin::OPTION_SETTINGS . '[' . $key . ']';
-		// Common attributes of the control, with its description, if any
-		$control = sprintf( 'id="%s" name="%s%s"', esc_attr( $id ), esc_attr( $name ), 'weights' === $field['type'] ? '[words]' : '' );
-		if ( isset( $field['description'] ) ) {
-			$control .= sprintf( ' aria-describedby="%s-description"', esc_attr( $id ) );
-		}
+		$default  = self::default( $key, $field );
+		/* translators: %s: Default value */
+		$description = trim( ( $field['description'] ?? '' ) . ( '' === $default ? '' : ' ' . sprintf( __( 'Default: %s.', 'ntrnllnk' ), $default ) ) );
+		$describedby = '' === $description ? '' : sprintf( ' aria-describedby="%s-description"', esc_attr( $id ) );
+		// Common attributes of the control
+		$control = sprintf( 'id="%s" name="%s%s"%s', esc_attr( $id ), esc_attr( $name ), 'weights' === $field['type'] ? '[words]' : '', $describedby );
 
 		switch ( $field['type'] ) {
 			case 'checkbox':
@@ -178,18 +245,44 @@ final class Admin {
 				foreach ( self::post_types() as $post_type => $label ) {
 					$html .= sprintf( '<label><input type="checkbox" name="%s[]" value="%s"%s> %s</label><br>', esc_attr( $name ), esc_attr( $post_type ), in_array( $post_type, (array) $value, true ) ? ' checked' : '', esc_html( $label ) );
 				}
-				$html = sprintf( '<fieldset><legend class="screen-reader-text">%s</legend>%s</fieldset>', esc_html( $field['label'] ), $html );
+				$html = sprintf( '<fieldset%s><legend class="screen-reader-text">%s</legend>%s</fieldset>', $describedby, esc_html( $field['label'] ), $html );
 				break;
 			default:
 				// Weights: words, as links get the rest
 				$html = sprintf( '<input type="number" %s value="%s" min="0" max="1" step="0.05" class="small-text">', $control, esc_attr( (string) ( $value['words'] ?? '' ) ) );
 		}//end switch
 
-		if ( isset( $field['description'] ) ) {
-			$html .= sprintf( '<p class="description" id="%s-description">%s</p>', esc_attr( $id ), esc_html( $field['description'] ) );
+		if ( '' !== $description ) {
+			$html .= sprintf( '<p class="description" id="%s-description">%s</p>', esc_attr( $id ), esc_html( $description ) );
 		}
 
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped while built
+	}
+
+	/**
+	 * Returns a setting’s default as shown on the settings page, or an empty string for empty defaults and defaults shown as placeholders
+	 *
+	 * @param string                                                   $key   Setting.
+	 * @param array{type: string, choices?: array<int|string, string>} $field Field.
+	 */
+	private static function default( string $key, array $field ): string {
+		// With as many decimals as the number has, formatted for the site’s language
+		$number = fn( int|float $number ): string => number_format_i18n( $number, max( 0, strlen( (string) strrchr( (string) $number, '.' ) ) - 1 ) );
+		if ( 'weights' === $field['type'] ) {
+			return $number( Settings::DEFAULTS['weights']['words'] );
+		}
+		if ( 'post_types' === $field['type'] ) {
+			return implode( ', ', array_intersect_key( self::post_types(), array_flip( Settings::DEFAULTS['post_types'] ) ) );
+		}
+
+		$default = Settings::DEFAULTS[ $key ];
+
+		return match ( true ) {
+			is_bool( $default )                                                       => $default ? __( 'On', 'ntrnllnk' ) : __( 'Off', 'ntrnllnk' ),
+			'select' === $field['type'] && ( is_int( $default ) || is_string( $default ) ) => $field['choices'][ $default ] ?? '',
+			is_int( $default ) || is_float( $default )                                 => $number( $default ),
+			default                                                                    => '',
+		};
 	}
 
 	/**
@@ -278,6 +371,21 @@ final class Admin {
 	 */
 	private static function fields(): array {
 		return [
+			'post_types'                   => [
+				'section' => 'general',
+				'label'   => __( 'Post types', 'ntrnllnk' ),
+				'type'    => 'post_types',
+			],
+			'urls'                         => [
+				'section'     => 'general',
+				'label'       => __( 'URLs', 'ntrnllnk' ),
+				'type'        => 'select',
+				'choices'     => [
+					'absolute' => __( 'Absolute (https://…)', 'ntrnllnk' ),
+					'relative' => __( 'Root-relative (/…)', 'ntrnllnk' ),
+				],
+				'description' => __( 'Absolute URLs work wherever the content goes, like in feeds and email.', 'ntrnllnk' ),
+			],
 			'count'                        => [
 				'section'     => 'list',
 				'label'       => __( 'Number of related posts', 'ntrnllnk' ),
@@ -315,8 +423,40 @@ final class Admin {
 				'step'        => 0.005,
 				'description' => __( 'How closely posts need to be related to show (0–1); raise it if lists show unrelated posts, lower it if fitting posts are missing.', 'ntrnllnk' ),
 			],
+			'placement'                    => [
+				'section'     => 'list_advanced',
+				'label'       => __( 'Placement', 'ntrnllnk' ),
+				'type'        => 'select',
+				'choices'     => [
+					'auto'   => __( 'After the content', 'ntrnllnk' ),
+					'manual' => __( 'Manual', 'ntrnllnk' ),
+				],
+				'description' => __( 'For manual placement, use the [ntrnllnk] shortcode in a post, or ntrnllnk_render() in a theme template.', 'ntrnllnk' ),
+			],
+			'priority'                     => [
+				'section'     => 'list_advanced',
+				'label'       => __( 'Priority', 'ntrnllnk' ),
+				'type'        => 'number',
+				'description' => __( 'With placement after the content: the lower, the further up the list shows among what other plugins add to the content.', 'ntrnllnk' ),
+			],
+			'language'                     => [
+				'section' => 'list_advanced',
+				'label'   => __( 'Language', 'ntrnllnk' ),
+				'type'    => 'select',
+				'choices' => [
+					'auto' => __( 'Detect per post', 'ntrnllnk' ),
+					'de'   => __( 'German', 'ntrnllnk' ),
+					'en'   => __( 'English', 'ntrnllnk' ),
+				],
+			],
+			'weights'                      => [
+				'section'     => 'list_advanced',
+				'label'       => __( 'Weight of words', 'ntrnllnk' ),
+				'type'        => 'weights',
+				'description' => __( 'How much shared words count, compared with shared links, which get the rest (0–1).', 'ntrnllnk' ),
+			],
 			'debug'                        => [
-				'section' => 'list',
+				'section' => 'list_advanced',
 				'label'   => __( 'Debugging', 'ntrnllnk' ),
 				'type'    => 'checkbox',
 				'text'    => __( 'Show scores of related posts, and posts below the minimum score, to logged-in users (contributors and above)', 'ntrnllnk' ),
@@ -334,6 +474,13 @@ final class Admin {
 				'min'     => 0,
 				'max'     => Settings::COUNT_MAX,
 			],
+			'links_inline_single_words'    => [
+				'section'     => 'inline',
+				'label'       => __( 'Single words', 'ntrnllnk' ),
+				'type'        => 'checkbox',
+				'text'        => __( 'Also link single words from titles, like product or person names', 'ntrnllnk' ),
+				'description' => __( 'More links, though some may miss: Check the report, and exclude phrases as needed.', 'ntrnllnk' ),
+			],
 			'links_inline_exclude_phrases' => [
 				'section'     => 'inline',
 				'label'       => __( 'Excluded phrases', 'ntrnllnk' ),
@@ -347,56 +494,10 @@ final class Admin {
 				'description' => __( 'IDs of posts whose content gets no in-content links, separated by commas.', 'ntrnllnk' ),
 			],
 			'links_class'                  => [
-				'section' => 'inline',
+				'section' => 'inline_advanced',
 				'label'   => __( 'Class', 'ntrnllnk' ),
 				'type'    => 'checkbox',
 				'text'    => __( 'Give in-content links the class “ntrnllnk-inline,” to style or track them', 'ntrnllnk' ),
-			],
-			'post_types'                   => [
-				'section' => 'advanced',
-				'label'   => __( 'Post types', 'ntrnllnk' ),
-				'type'    => 'post_types',
-			],
-			'placement'                    => [
-				'section'     => 'advanced',
-				'label'       => __( 'Placement', 'ntrnllnk' ),
-				'type'        => 'select',
-				'choices'     => [
-					'auto'   => __( 'After the content', 'ntrnllnk' ),
-					'manual' => __( 'Manual', 'ntrnllnk' ),
-				],
-				'description' => __( 'For manual placement, use the [ntrnllnk] shortcode in a post, or ntrnllnk_render() in a theme template.', 'ntrnllnk' ),
-			],
-			'priority'                     => [
-				'section'     => 'advanced',
-				'label'       => __( 'Priority', 'ntrnllnk' ),
-				'type'        => 'number',
-				'description' => __( 'With placement after the content: the lower, the further up the list shows among what other plugins add to the content.', 'ntrnllnk' ),
-			],
-			'urls'                         => [
-				'section' => 'advanced',
-				'label'   => __( 'URLs', 'ntrnllnk' ),
-				'type'    => 'select',
-				'choices' => [
-					'absolute' => __( 'Absolute (https://…), which work wherever the content goes', 'ntrnllnk' ),
-					'relative' => __( 'Root-relative (/…)', 'ntrnllnk' ),
-				],
-			],
-			'language'                     => [
-				'section' => 'advanced',
-				'label'   => __( 'Language', 'ntrnllnk' ),
-				'type'    => 'select',
-				'choices' => [
-					'auto' => __( 'Detect per post', 'ntrnllnk' ),
-					'de'   => __( 'German', 'ntrnllnk' ),
-					'en'   => __( 'English', 'ntrnllnk' ),
-				],
-			],
-			'weights'                      => [
-				'section'     => 'advanced',
-				'label'       => __( 'Weight of words', 'ntrnllnk' ),
-				'type'        => 'weights',
-				'description' => __( 'How much shared words count, compared with shared links, which get the rest (0–1).', 'ntrnllnk' ),
 			],
 		];
 	}

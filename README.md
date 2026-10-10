@@ -41,13 +41,16 @@ Besides listing related posts, ntrnllnk links the first mention of another post�
 
 The text never links to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
 
-What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German), that the post’s own text mentions at least three times. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christie’s”).
+What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Herr der Ringe,” “Jennifer L. Armentrout”; single words are too often common nouns, especially in German, so they count only with “Single words” on), that the post’s own text mentions at least three times. A title’s first word, or the first one after a colon, counts as part of a name only if the text never uses it in lowercase, so that “Is Web3 dead?” doesn’t make “Is Web3” a subject. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christie’s”).
+
+With “Single words” on, single capitalized words from titles count, too, like product or person names (“Mistral,” “Kluftinger”). To keep out common words, such a word needs at least three letters, must not start the title (or follow a colon), must not appear in lowercase in the post’s text, and must not appear in other titles, which makes it a topic of the site rather than of the post (like “AI”). This makes for more links, but also for more that miss, especially in German, where all nouns are capitalized; the report shows them, and “Excluded phrases” removes them.
+
 
 In-content links are added when a post is shown, not saved to it, so turning them off removes them all. To keep particular links out, use “Excluded phrases” or “Excluded posts”; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
 
 ### Settings
 
-The settings page, under Settings → ntrnllnk, needs the `manage_options` capability (administrators, by default).
+The settings page, under Settings → ntrnllnk, needs the `manage_options` capability (administrators, by default). Less common settings are under each feature’s “Advanced,” and settings that apply to both features under “General.” Each setting shows its default, and “Reset to Defaults” restores all settings.
 
 | Setting | Default | Description |
 |---|---|---|
@@ -56,20 +59,23 @@ The settings page, under Settings → ntrnllnk, needs the `manage_options` capab
 | Heading | “Further reading” (translated) | Heading of the list |
 | Heading level | h2 | Heading level (h2–h6), or “Automatic” for the highest level in the post’s content (or h2 without headings), so that the list sits at the level of the content’s top sections |
 | Minimum score | 0.04 | How closely posts need to be related (0–1) to show; posts with fewer matches show fewer related posts, or no list at all (see “Scores”) |
+| **Related Posts → Advanced** | | |
+| Placement | After the content | “After the content” to append the list to the content, “Manual” to place it yourself |
+| Priority | 20 | With placement after the content, when the list gets appended to the content, relative to other plugins |
+| Language | Detect per post | Language of the content: detected per post, or German or English for all posts |
+| Weight of words | 0.6 | How much shared words count, compared with shared links, which get the rest (0.4 by default) |
 | Debugging | Off | Whether to show scores of related posts, and posts below “Minimum score,” to logged-in users (contributors and above; see “Scores”) |
 | **In-Content Links** | | |
 | In-content links | On | Whether to link mentions of other posts’ subjects in the text |
 | Maximum per post | 3 | Maximum number of in-content links per post |
+| Single words | Off | Whether single words from titles count as subjects, too, like product or person names, for more links, though some may miss |
 | Excluded phrases | None | Phrases never to link, one per line, e.g., “Happy End” and “Miss Marple” |
 | Excluded posts | None | IDs of posts whose content gets no in-content links, separated by commas |
+| **In-Content Links → Advanced** | | |
 | Class | Off | Whether in-content links get the class `ntrnllnk-inline` (links in the list can be selected with `.ntrnllnk a`) |
-| **Advanced** | | |
-| Post types | Posts | Post types to relate and show related posts for |
-| Placement | After the content | “After the content” to append the list to the content, “Manual” to place it yourself |
-| Priority | 20 | With placement after the content, when the list gets appended to the content, relative to other plugins |
+| **General** | | |
+| Post types | Posts | Post types to relate, link, and show related posts and in-content links for |
 | URLs | Absolute | Absolute URLs, which work wherever the content goes (feeds, REST API, email), or root-relative ones (`/…`) |
-| Language | Detect per post | Language of the content: detected per post, or German or English for all posts |
-| Weight of words | 0.6 | How much shared words count, compared with shared links, which get the rest (0.4 by default) |
 
 ### Report
 
@@ -87,8 +93,8 @@ The report, under _Tools_ → _ntrnllnk_, shows for each post:
 
 ntrnllnk works out related posts in the background, in rebuilds, and stores them; that’s why settings take effect at different times:
 
-* **Display settings**—“Heading,” “Heading level,” “Placement,” “Priority,” “URLs,” and all settings under “In-Content Links”—apply right away, from the next page view on. So does lowering “Number of related posts,” or setting it to 0.
-* **Ranking settings**—“Number of related posts,” “Minimum score,” “Debugging,” “Post types,” “Language,” and “Weight of words”—decide which posts are related, and apply after the rebuild that saving them starts.
+* **Display settings**—“Heading,” “Heading level,” “Placement,” “Priority,” “URLs,” and all settings under “In-Content Links” but “Single words”—apply right away, from the next page view on. So does lowering “Number of related posts,” or setting it to 0.
+* **Ranking settings**—“Number of related posts,” “Minimum score,” “Debugging,” “Post types,” “Language,” and “Weight of words”—decide which posts are related, and apply after the rebuild that saving them starts. So does “Single words,” which decides the subjects for in-content links.
 
 Posts trigger rebuilds, too, a minute after they get published, unpublished, or deleted, or after their title, content, date, password, categories, or tags change. The subjects for in-content links come from these rebuilds as well. Updating ntrnllnk starts one with the next view of the admin area. Besides, every site gets one rebuild a day.
 
