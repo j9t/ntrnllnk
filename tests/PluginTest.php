@@ -302,6 +302,11 @@ final class PluginTest extends TestCase {
 		Plugin::on_settings_saved( [], [ 'score_min' => 0.06 ] + Settings::DEFAULTS );
 	}
 
+	public function test_settings_saved_rebuilds_soon_when_single_words_change(): void {
+		$this->expect_rebuild_soon( true );
+		Plugin::on_settings_saved( Settings::DEFAULTS, [ 'links_inline_single_words' => true ] + Settings::DEFAULTS );
+	}
+
 	public function test_settings_saved_skips_rebuild_when_only_display_settings_change(): void {
 		$this->expect_rebuild_soon( false );
 		Plugin::on_settings_saved( Settings::DEFAULTS, [ 'heading' => 'Related posts' ] + Settings::DEFAULTS );

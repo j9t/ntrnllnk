@@ -241,20 +241,20 @@ final class Plugin {
 	}
 
 	/**
-	 * Rebuilds right away when saved settings change related posts
+	 * Rebuilds right away when saved settings change related posts or phrases
 	 *
 	 * @param mixed $settings_old Previous settings.
 	 * @param mixed $settings_new New settings.
 	 */
 	public static function on_settings_saved( mixed $settings_old, mixed $settings_new ): void {
-		$ranking = fn( mixed $settings ): array => Settings::ranking( Settings::merge( $settings ) );
-		if ( $ranking( $settings_old ) !== $ranking( $settings_new ) ) {
+		$rebuilding = fn( mixed $settings ): array => Settings::rebuilding( Settings::merge( $settings ) );
+		if ( $rebuilding( $settings_old ) !== $rebuilding( $settings_new ) ) {
 			self::rebuild_soon();
 		}
 	}
 
 	/**
-	 * Rebuilds right away when settings saved for the first time change related posts
+	 * Rebuilds right away when settings saved for the first time change related posts or phrases
 	 *
 	 * @param string $option   Option name.
 	 * @param mixed  $settings Settings.
@@ -365,7 +365,7 @@ final class Plugin {
 			foreach ( $posts as $post ) {
 				$content               = strip_shortcodes( $post->post_content );
 				$text                  = Extract::text( $content );
-				$mentions[ $post->ID ] = Phrases::mentions( Extract::text( $post->post_title ), $text );
+				$mentions[ $post->ID ] = Phrases::mentions( Extract::text( $post->post_title ), $text, $settings['links_inline_single_words'] );
 				$times[ $post->ID ]    = (int) get_post_timestamp( $post );
 				if ( ! $rank ) {
 					continue;

@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Sanitizing turns form input into complete settings and leaves sanitized settings unchanged, as WordPress may sanitize twice when saving.
  *
- * @phpstan-type Values array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: string, placement: string, priority: int, links_inline: bool, links_inline_max: int, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array{words: float, links: float}, score_min: float, debug: bool}
+ * @phpstan-type Values array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: string, placement: string, priority: int, links_inline: bool, links_inline_max: int, links_inline_single_words: bool, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array{words: float, links: float}, score_min: float, debug: bool}
  */
 final class Settings {
 
@@ -31,6 +31,7 @@ final class Settings {
 		'priority'                     => 20,
 		'links_inline'                 => true,
 		'links_inline_max'             => 3,
+		'links_inline_single_words'    => false,
 		'links_inline_exclude_phrases' => [],
 		'links_inline_exclude_posts'   => [],
 		'links_class'                  => false,
@@ -41,9 +42,9 @@ final class Settings {
 	];
 
 	/**
-	 * Settings that decide related posts, so that changing them requires a rebuild
+	 * Settings that decide related posts or the phrases for in-content links, so that changing them requires a rebuild
 	 */
-	public const RANKING = [ 'post_types', 'count', 'language', 'weights', 'score_min', 'debug' ];
+	public const REBUILD = [ 'post_types', 'count', 'links_inline_single_words', 'language', 'weights', 'score_min', 'debug' ];
 
 	/**
 	 * Maximum number of related posts and of in-content links per post
@@ -80,6 +81,7 @@ final class Settings {
 			'priority'                     => self::integer( $input['priority'] ?? null, self::DEFAULTS['priority'], PHP_INT_MIN, PHP_INT_MAX ),
 			'links_inline'                 => ! empty( $input['links_inline'] ),
 			'links_inline_max'             => self::integer( $input['links_inline_max'] ?? null, self::DEFAULTS['links_inline_max'], 0, self::COUNT_MAX ),
+			'links_inline_single_words'    => ! empty( $input['links_inline_single_words'] ),
 			'links_inline_exclude_phrases' => self::lines( $input['links_inline_exclude_phrases'] ?? [] ),
 			'links_inline_exclude_posts'   => self::ids( $input['links_inline_exclude_posts'] ?? [] ),
 			'links_class'                  => ! empty( $input['links_class'] ),
@@ -104,13 +106,13 @@ final class Settings {
 	}
 
 	/**
-	 * Returns the settings that decide related posts
+	 * Returns the settings that require a rebuild
 	 *
 	 * @param array<string, mixed> $settings Settings.
 	 * @return array<string, mixed>
 	 */
-	public static function ranking( array $settings ): array {
-		return array_intersect_key( $settings, array_flip( self::RANKING ) );
+	public static function rebuilding( array $settings ): array {
+		return array_intersect_key( $settings, array_flip( self::REBUILD ) );
 	}
 
 	/**
