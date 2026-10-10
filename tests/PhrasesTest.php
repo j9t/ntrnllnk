@@ -146,12 +146,23 @@ final class PhrasesTest extends TestCase {
 		$this->assertSame( [], Phrases::mentions( 'What makes Mistral so interesting?', 'Mistral, Mistral, Mistral' ) );
 	}
 
-	public function test_mentions_skips_single_words_that_start_the_title_or_have_fewer_than_three_letters(): void {
-		$this->assertSame( [], Phrases::mentions( 'Claude: Moving beyond US solutions', 'Claude, Claude, Claude. Moving on. US, US, US.', true ) );
+	public function test_mentions_skips_single_words_with_fewer_than_three_letters(): void {
+		$this->assertArrayNotHasKey( 'US', Phrases::mentions( 'Moving beyond US solutions', 'US, US, US.', true ) );
 	}
 
-	public function test_mentions_skips_single_words_the_text_uses_in_lowercase(): void {
-		$this->assertSame( [ 'Right Order' => 0 ], Phrases::mentions( 'The Right Order', 'Right here, right now, in the right order.', true ) );
+	public function test_mentions_counts_no_mentions_of_single_words_starting_the_title(): void {
+		$this->assertSame( [ 'Claude' => 0 ], Phrases::mentions( 'Claude: why to switch', 'Claude, Claude, Claude.', true ) );
+	}
+
+	public function test_mentions_counts_no_mentions_of_single_words_the_text_uses_in_lowercase(): void {
+		$this->assertSame(
+			[
+				'Right Order' => 0,
+				'Right'       => 0,
+				'Order'       => 0,
+			],
+			Phrases::mentions( 'The Right Order', 'Right here, right now, in the right order.', true )
+		);
 	}
 
 	public function test_extract_drops_single_words_from_several_titles(): void {
@@ -165,5 +176,18 @@ final class PhrasesTest extends TestCase {
 		);
 
 		$this->assertSame( [ 'Claude' => 3 ], $phrases );
+	}
+
+	public function test_extract_drops_single_words_from_titles_that_do_not_qualify_them(): void {
+		$phrases = Phrases::extract(
+			[
+				1 => Phrases::mentions( 'What makes Mistral so interesting?', 'Mistral, Mistral, Mistral', true ),
+				2 => Phrases::mentions( 'Why we chose Mistral', 'A mistral is a wind.', true ),
+				3 => Phrases::mentions( 'Why switch to Claude', 'Claude, Claude, Claude', true ),
+				4 => Phrases::mentions( 'Claude vs. ChatGPT', 'Both are good.', true ),
+			]
+		);
+
+		$this->assertSame( [], $phrases );
 	}
 }

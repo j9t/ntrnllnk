@@ -88,10 +88,8 @@ final class Phrases {
 		}
 
 		foreach ( self::words( $title ) as $word ) {
-			// Capitalized as a name rather than for its position (like “Right” in “The Right Order”)
-			if ( ! isset( $words_initial[ $word ] ) && ! self::count_mentions( mb_strtolower( $word ), $text ) ) {
-				$counts[ $word ] = self::count_mentions( $word, $text );
-			}
+			// Kept without mentions unless capitalized as a name rather than for its position (like “Right” in “The Right Order”), so that `extract()` still sees the title contain it
+			$counts[ $word ] = isset( $words_initial[ $word ] ) || self::count_mentions( mb_strtolower( $word ), $text ) ? 0 : self::count_mentions( $word, $text );
 		}
 
 		return $counts;
