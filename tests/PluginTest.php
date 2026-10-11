@@ -569,6 +569,23 @@ final class PluginTest extends TestCase {
 		);
 	}
 
+	public function test_link_content_skips_targets_linked_by_page_of_permalink(): void {
+		$this->settings( [ 'links_inline' => true ] );
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+		];
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ), $this->post( [ 'ID' => 12 ] ) ] );
+		Functions\when( 'get_permalink' )->alias( fn( \WP_Post $post ): string => 'https://example.com/' . ( 11 === $post->ID ? 'agatha' : 'harry' ) . '/' );
+
+		// Page 2 of post 11, and of a post that is not a target
+		$this->assertSame(
+			'<p><a href="https://example.com/agatha/2/">Book</a> on Agatha Christie</p><p><a href="https://example.com/other/2/">Book</a> on <a href="https://example.com/harry/">Harry Potter</a></p>',
+			Plugin::link_content( '<p><a href="https://example.com/agatha/2/">Book</a> on Agatha Christie</p><p><a href="https://example.com/other/2/">Book</a> on Harry Potter</p>' )
+		);
+	}
+
 	public function test_link_content_skips_targets_linked_by_differently_encoded_permalink(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );
@@ -906,7 +923,7 @@ final class PluginTest extends TestCase {
 		Functions\when( 'get_object_taxonomies' )->justReturn( [] );
 		Functions\when( 'get_locale' )->justReturn( 'en_US' );
 		Functions\when( 'strip_shortcodes' )->returnArg();
-		Filters\expectApplied( 'wp_max_autoloaded_option_size' )->once()->andReturn( 10 );
+		Filters\expectApplied( 'wp_max_autoloaded_option_size' )->once()->with( 150000, Plugin::OPTION_PHRASES )->andReturn( 10 );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::type( 'array' ), false );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], false );
 		Functions\expect( 'wp_set_option_autoload' )->once()->with( Plugin::OPTION_PHRASES, false );

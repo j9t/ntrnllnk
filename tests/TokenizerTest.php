@@ -28,6 +28,13 @@ final class TokenizerTest extends TestCase {
 		$this->assertSame( [ 'gehirn', 'krimi' ], $tokenizer->tokens( 'Das Gehirn ist ein Krimi, 2024.' ) );
 	}
 
+	public function test_tokens_limits_cached_words(): void {
+		$tokenizer = new Tokenizer( 'de', 2 );
+		$this->assertSame( [ 'krimi', 'gehirn', 'kilogramm' ], $tokenizer->tokens( 'Der Krimi, das Gehirn, ein Kilogramm' ) );
+		$this->assertSame( [ 'krimi', 'gehirn' ], $tokenizer->tokens( 'Der Krimi über das Gehirn' ) );
+		$this->assertLessThanOrEqual( 2, count( ( new \ReflectionProperty( Tokenizer::class, 'tokens' ) )->getValue( $tokenizer ) ) );
+	}
+
 	public function test_tokens_splits_on_hyphens_and_apostrophes(): void {
 		$tokenizer = new Tokenizer( 'en' );
 		$this->assertSame( [ 'science', 'fiction', 'author' ], $tokenizer->tokens( 'Science-fiction author’s' ) );

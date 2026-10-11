@@ -389,7 +389,7 @@ final class Plugin {
 		unset( $documents );
 		$phrases = Phrases::extract( $mentions, $times );
 		// Autoloaded only up to the size WordPress autoloads by default, so that large sites do not load phrases on every request
-		$autoload = $settings['links_inline'] && strlen( (string) maybe_serialize( $phrases ) ) <= (int) apply_filters( 'wp_max_autoloaded_option_size', 150000 ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter
+		$autoload = $settings['links_inline'] && strlen( (string) maybe_serialize( $phrases ) ) <= (int) apply_filters( 'wp_max_autoloaded_option_size', 150000, self::OPTION_PHRASES ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter
 		update_option( self::OPTION_PHRASES, $phrases, $autoload );
 		// `update_option()` changes autoloading only along with the value
 		wp_set_option_autoload( self::OPTION_PHRASES, $autoload );
@@ -630,7 +630,8 @@ final class Plugin {
 		foreach ( Extract::hrefs( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() ) as $href ) {
 			$url = (string) Extract::normalize_url( $href );
 			if ( str_starts_with( $url . '/', $host_site . '/' ) ) {
-				$ids_linked[ Extract::id( $href ) ?? $ids_urls[ $url ] ?? 0 ] = true;
+				// Pages of paginated posts (`/book/2/`) count as the post
+				$ids_linked[ Extract::id( $href ) ?? $ids_urls[ $url ] ?? $ids_urls[ (string) preg_replace( '#/\d+$#', '', $url ) ] ?? 0 ] = true;
 			}
 		}
 
