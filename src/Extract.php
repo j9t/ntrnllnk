@@ -104,18 +104,20 @@ final class Extract {
 	}
 
 	/**
-	 * Returns an absolute HTTP(S) URL as host and path, without “www.,” query, fragment, and trailing slash
+	 * Returns an absolute HTTP(S) URL as host and path, without “www.,” query, fragment, and trailing slash, and with the path decoded, so that it is the same however encoded
 	 *
 	 * @param string $url URL.
 	 */
 	public static function normalize_url( string $url ): ?string {
+		// Non-ASCII characters encoded first, as `parse_url()` replaces some of their bytes
+		$url   = (string) preg_replace_callback( '/[^\x00-\x7F]+/', fn( array $matches ): string => rawurlencode( $matches[0] ), $url );
 		$parts = parse_url( $url ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- Kept WordPress-independent
 		if ( ! is_array( $parts ) || empty( $parts['host'] ) || ! in_array( strtolower( $parts['scheme'] ?? '' ), [ 'http', 'https' ], true ) ) {
 			return null;
 		}
 		$host = preg_replace( '/^www\./', '', strtolower( $parts['host'] ) );
 
-		return $host . rtrim( $parts['path'] ?? '', '/' );
+		return $host . rtrim( rawurldecode( $parts['path'] ?? '' ), '/' );
 	}
 
 	/**

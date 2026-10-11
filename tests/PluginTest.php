@@ -569,6 +569,23 @@ final class PluginTest extends TestCase {
 		);
 	}
 
+	public function test_link_content_skips_targets_linked_by_differently_encoded_permalink(): void {
+		$this->settings( [ 'links_inline' => true ] );
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+		];
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ), $this->post( [ 'ID' => 12 ] ) ] );
+		// As WordPress encodes non-Latin slugs: in lowercase
+		Functions\when( 'get_permalink' )->alias( fn( \WP_Post $post ): string => 'https://example.com/' . ( 11 === $post->ID ? '%d0%b0%d0%b3%d0%b0%d1%82%d0%b0' : '%d0%b3%d0%b0%d1%80%d1%80%d0%b8' ) . '/' );
+
+		$this->assertSame(
+			'<p><a href="/агата/">Book</a> on Agatha Christie</p><p><a href="https://example.com/%D0%B3%D0%B0%D1%80%D1%80%D0%B8/">Book</a> on Harry Potter</p>',
+			Plugin::link_content( '<p><a href="/агата/">Book</a> on Agatha Christie</p><p><a href="https://example.com/%D0%B3%D0%B0%D1%80%D1%80%D0%B8/">Book</a> on Harry Potter</p>' )
+		);
+	}
+
 	public function test_link_content_links_targets_with_plain_permalinks_despite_links_to_home(): void {
 		$this->settings( [ 'links_inline' => true ] );
 		$this->view( 7 );
