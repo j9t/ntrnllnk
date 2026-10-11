@@ -95,4 +95,15 @@ final class ExtractTest extends TestCase {
 	public function test_normalize_url_rejects_invalid_urls(): void {
 		$this->assertNull( Extract::normalize_url( 'https://' ) );
 	}
+
+	public function test_id_returns_post_id_from_query(): void {
+		$this->assertSame( 12, Extract::id( 'https://example.com/?p=12' ) );
+		$this->assertSame( 13, Extract::id( 'https://example.com/?preview=true&page_id=13#top' ) );
+	}
+
+	public function test_id_returns_null_without_post_id(): void {
+		$this->assertNull( Extract::id( 'https://example.com/12/' ) );
+		$this->assertNull( Extract::id( 'https://example.com/?s=p=12' ) );
+		$this->assertNull( Extract::id( 'https://example.com/?p=abc' ) );
+	}
 }

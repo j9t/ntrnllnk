@@ -387,9 +387,12 @@ final class Plugin {
 		$score_min = $settings['debug'] ? $settings['score_min'] * self::FACTOR_DEBUG : $settings['score_min'];
 		$related   = $rank ? ( new Ranker( $settings['weights'], $score_min ) )->related( $documents, $settings['count'] ) : [];
 		unset( $documents );
-		update_option( self::OPTION_PHRASES, Phrases::extract( $mentions, $times ), $settings['links_inline'] );
+		$phrases = Phrases::extract( $mentions, $times );
+		// Autoloaded only up to the size WordPress autoloads by default, so that large sites do not load phrases on every request
+		$autoload = $settings['links_inline'] && strlen( (string) maybe_serialize( $phrases ) ) <= (int) apply_filters( 'wp_max_autoloaded_option_size', 150000 ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter
+		update_option( self::OPTION_PHRASES, $phrases, $autoload );
 		// `update_option()` changes autoloading only along with the value
-		wp_set_option_autoload( self::OPTION_PHRASES, $settings['links_inline'] );
+		wp_set_option_autoload( self::OPTION_PHRASES, $autoload );
 
 		$ids_stale = get_posts(
 			[
@@ -610,18 +613,25 @@ final class Plugin {
 				'posts_per_page' => -1,
 			]
 		);
-		// Posts the content links to, by ID, so that any form of their URLs counts (like `?p=123`)
-		$host_site  = (string) Extract::normalize_url( home_url( '/' ) );
-		$ids_linked = [];
-		foreach ( Extract::hrefs( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() ) as $href ) {
-			if ( str_starts_with( (string) Extract::normalize_url( $href ) . '/', $host_site . '/' ) ) {
-				$ids_linked[ url_to_postid( $href ) ] = true;
+
+		$urls     = [];
+		$ids_urls = [];
+		foreach ( $posts as $post ) {
+			$urls[ $post->ID ] = (string) get_permalink( $post );
+			// Plain permalinks (`?p=123`) are left to `Extract::id()`, as they would all normalize to the site
+			if ( null === Extract::id( $urls[ $post->ID ] ) ) {
+				$ids_urls[ (string) Extract::normalize_url( $urls[ $post->ID ] ) ] = $post->ID;
 			}
 		}
 
-		$urls = [];
-		foreach ( $posts as $post ) {
-			$urls[ $post->ID ] = (string) get_permalink( $post );
+		// Targets the content links to, by permalink or by ID (like `?p=123`), rather than by resolving each URL, which can take a query
+		$host_site  = (string) Extract::normalize_url( home_url( '/' ) );
+		$ids_linked = [];
+		foreach ( Extract::hrefs( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() ) as $href ) {
+			$url = (string) Extract::normalize_url( $href );
+			if ( str_starts_with( $url . '/', $host_site . '/' ) ) {
+				$ids_linked[ Extract::id( $href ) ?? $ids_urls[ $url ] ?? 0 ] = true;
+			}
 		}
 
 		$urls_phrases = [];

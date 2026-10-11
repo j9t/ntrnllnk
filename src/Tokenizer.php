@@ -64,6 +64,13 @@ final class Tokenizer {
 	private array $stopwords;
 
 	/**
+	 * Tokens of words seen before, or empty strings for words left out, as most words recur
+	 *
+	 * @var array<string, string>
+	 */
+	private array $tokens = [];
+
+	/**
 	 * Creates a tokenizer for a language
 	 *
 	 * @param string $language ISO 639-1 code, e.g., `de`; other languages are only lowercased.
@@ -82,10 +89,10 @@ final class Tokenizer {
 		$words  = preg_split( '/[^\p{L}\p{N}]+/u', mb_strtolower( $text ), -1, PREG_SPLIT_NO_EMPTY );
 		$tokens = [];
 		foreach ( false === $words ? [] : $words as $word ) {
-			if ( mb_strlen( $word ) < self::LENGTH_WORD_MIN || isset( $this->stopwords[ $word ] ) || preg_match( '/^\p{N}+$/u', $word ) ) {
-				continue;
+			$token = $this->tokens[ $word ] ??= mb_strlen( $word ) < self::LENGTH_WORD_MIN || isset( $this->stopwords[ $word ] ) || preg_match( '/^\p{N}+$/u', $word ) ? '' : $this->stem( $word );
+			if ( '' !== $token ) {
+				$tokens[] = $token;
 			}
-			$tokens[] = $this->stem( $word );
 		}
 
 		return $tokens;

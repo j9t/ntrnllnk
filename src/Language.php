@@ -31,11 +31,12 @@ final class Language {
 	 * @param string $fallback Language to return without a clear answer, e.g., the site language.
 	 */
 	public static function detect( string $text, string $fallback ): string {
-		$words  = preg_split( '/[^\p{L}\p{N}]+/u', mb_strtolower( $text ), -1, PREG_SPLIT_NO_EMPTY );
-		$counts = [];
+		$words = preg_split( '/[^\p{L}\p{N}]+/u', mb_strtolower( $text ), -1, PREG_SPLIT_NO_EMPTY );
+		// Counted per distinct word, so that stopwords get looked up natively rather than word by word
+		$counts_words = array_count_values( false === $words ? [] : $words );
+		$counts       = [];
 		foreach ( self::SUPPORTED as $language ) {
-			$stopwords           = Stopwords::for_language( $language );
-			$counts[ $language ] = count( array_filter( false === $words ? [] : $words, fn( string $word ): bool => isset( $stopwords[ $word ] ) ) );
+			$counts[ $language ] = array_sum( array_intersect_key( $counts_words, Stopwords::for_language( $language ) ) );
 		}
 		arsort( $counts );
 

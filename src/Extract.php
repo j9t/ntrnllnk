@@ -119,6 +119,18 @@ final class Extract {
 	}
 
 	/**
+	 * Returns the ID of the post a URL names in its query (`?p=123`, `?page_id=123`), or null if it names none
+	 *
+	 * @param string $url URL.
+	 */
+	public static function id( string $url ): ?int {
+		parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- Kept WordPress-independent
+		$id = $query['p'] ?? $query['page_id'] ?? null;
+
+		return is_string( $id ) && ctype_digit( $id ) ? (int) $id : null;
+	}
+
+	/**
 	 * Returns scheme and host of a URL, or null if there are none
 	 *
 	 * @param string $url URL.

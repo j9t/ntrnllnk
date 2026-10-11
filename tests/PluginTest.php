@@ -33,6 +33,7 @@ final class PluginTest extends TestCase {
 		Functions\when( 'home_url' )->justReturn( 'https://example.com' );
 		Functions\when( 'get_file_data' )->justReturn( [ 'version' => '1.0.0' ] );
 		Functions\when( 'get_option' )->alias( fn( string $name, mixed $fallback = false ): mixed => $this->options[ $name ] ?? $fallback );
+		Functions\when( 'maybe_serialize' )->alias( 'serialize' );
 	}
 
 	protected function tearDown(): void {
@@ -543,11 +544,53 @@ final class PluginTest extends TestCase {
 			]
 		);
 		// The content already links to post 12, by its short link
-		Functions\when( 'url_to_postid' )->alias( fn( string $url ): int => 'https://example.com/?p=12' === $url ? 12 : 0 );
+		Functions\expect( 'url_to_postid' )->never();
 
 		$this->assertSame(
 			'<p><a href="/?p=12">Book</a> on Harry Potter</p><p><a href="https://example.com/11/">Agatha Christie</a></p><p>Stephen King</p>',
 			Plugin::link_content( '<p><a href="/?p=12">Book</a> on Harry Potter</p><p>Agatha Christie</p><p>Stephen King</p>' )
+		);
+	}
+
+	public function test_link_content_skips_targets_linked_by_permalink(): void {
+		$this->settings( [ 'links_inline' => true ] );
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+		];
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ), $this->post( [ 'ID' => 12 ] ) ] );
+		Functions\expect( 'url_to_postid' )->never();
+
+		// Linked with “www.,” without the trailing slash, and with a fragment, which all count as the permalink
+		$this->assertSame(
+			'<p><a href="https://www.example.com/12#reviews">Book</a> on Harry Potter</p><p><a href="https://example.com/11/">Agatha Christie</a></p>',
+			Plugin::link_content( '<p><a href="https://www.example.com/12#reviews">Book</a> on Harry Potter</p><p>Agatha Christie</p>' )
+		);
+	}
+
+	public function test_link_content_links_targets_with_plain_permalinks_despite_links_to_home(): void {
+		$this->settings( [ 'links_inline' => true ] );
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ) ] );
+		Functions\when( 'get_permalink' )->alias( fn( \WP_Post $post ): string => 'https://example.com/?p=' . $post->ID );
+
+		$this->assertSame(
+			'<p><a href="https://example.com/">Home</a></p><p><a href="https://example.com/?p=11">Agatha Christie</a></p>',
+			Plugin::link_content( '<p><a href="https://example.com/">Home</a></p><p>Agatha Christie</p>' )
+		);
+	}
+
+	public function test_link_content_ignores_links_to_other_sites(): void {
+		$this->settings( [ 'links_inline' => true ] );
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ) ] );
+
+		$this->assertSame(
+			'<p><a href="https://example.org/?p=11">Book</a></p><p><a href="https://example.com/11/">Agatha Christie</a></p>',
+			Plugin::link_content( '<p><a href="https://example.org/?p=11">Book</a></p><p>Agatha Christie</p>' )
 		);
 	}
 
@@ -659,7 +702,6 @@ final class PluginTest extends TestCase {
 		$this->view( 7 );
 		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
 		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 11 ] ) ] );
-		Functions\when( 'url_to_postid' )->justReturn( 11 );
 
 		$this->assertSame(
 			'<p><a href="https://example.com/11/">Agatha Christie</a></p><section class="ntrnllnk"><h2>Further reading</h2><ul><li><a href="https://example.com/11/">Agatha Christie</a></li></ul></section>',
@@ -823,6 +865,34 @@ final class PluginTest extends TestCase {
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::type( 'array' ), false );
 		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], true );
 		Functions\when( 'wp_set_option_autoload' )->justReturn( true );
+
+		Plugin::rebuild();
+	}
+
+	public function test_rebuild_does_not_autoload_phrases_beyond_limit(): void {
+		$this->settings(
+			[
+				'count'        => 0,
+				'links_inline' => true,
+			]
+		);
+		$post = $this->post(
+			[
+				'ID'           => 1,
+				'post_title'   => 'Agatha Christie in Order',
+				'post_content' => '<p>Agatha Christie wrote mysteries. Agatha Christie’s detectives. Agatha Christie died in 1976.</p>',
+			]
+		);
+		Functions\expect( 'get_posts' )->times( 3 )->andReturn( [ 1 ], [ $post ], [] );
+		$this->expect_rebuild_runs();
+		Functions\when( 'get_post_timestamp' )->justReturn( 1 );
+		Functions\when( 'get_object_taxonomies' )->justReturn( [] );
+		Functions\when( 'get_locale' )->justReturn( 'en_US' );
+		Functions\when( 'strip_shortcodes' )->returnArg();
+		Filters\expectApplied( 'wp_max_autoloaded_option_size' )->once()->andReturn( 10 );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_REBUILD, Mockery::type( 'array' ), false );
+		Functions\expect( 'update_option' )->once()->with( Plugin::OPTION_PHRASES, [ 'Agatha Christie' => 1 ], false );
+		Functions\expect( 'wp_set_option_autoload' )->once()->with( Plugin::OPTION_PHRASES, false );
 
 		Plugin::rebuild();
 	}
