@@ -34,23 +34,23 @@ The full documentation, including all settings and how scores work, is [on GitHu
 
 == Frequently Asked Questions ==
 
-= Why do some posts have no or only a short list? =
+= Why Do Some Posts Have No or Only a Short List? =
 
 The list includes only posts related closely enough. If lists show unrelated posts, raise “Minimum score”; if fitting posts are missing, lower it. “Debugging” shows the scores to logged-in users.
 
-= When do changed settings apply? =
+= When Do Changed Settings Apply? =
 
 Display settings apply right away. Settings that decide which posts are related apply after the rebuild that saving them starts, which takes a few seconds on most sites. If a page cache is in front of the site, it keeps showing the old lists until it gets cleared.
 
-= Does it work on large sites? =
+= Does the Plugin Work on Large Sites? =
 
 Up to a few thousand posts, rebuilds fit into the 256 MB that WordPress allows by default. Beyond about 4,000 posts, they may need more: Raise `WP_MAX_MEMORY_LIMIT`, or the limit for ntrnllnk alone, via the `ntrnllnk_memory_limit` filter. Visitors don’t notice the size of a site.
 
-= How do I keep a particular link out? =
+= How Do I Keep a Particular Link Out? =
 
 Use “Excluded phrases” or “Excluded posts.” In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
 
-= What happens when I delete the plugin? =
+= What Happens When I Delete the Plugin? =
 
 Deleting it removes its data and settings; deactivating it only stops rebuilds and keeps the data.
 
