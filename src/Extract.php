@@ -63,7 +63,7 @@ final class Extract {
 	 *
 	 * Root-relative targets are resolved against `$url_base`, if given; other relative targets are skipped.
 	 *
-	 * @param string $html     HTML.
+	 * @param string $html HTML.
 	 * @param string $url_base Site URL, e.g., `https://example.com`.
 	 * @return string[]
 	 */
@@ -76,7 +76,7 @@ final class Extract {
 	 *
 	 * Root-relative targets are resolved against `$url_base`, if given; other relative targets are skipped.
 	 *
-	 * @param string $html     HTML.
+	 * @param string $html HTML.
 	 * @param string $url_base Site URL, e.g., `https://example.com`.
 	 * @return string[]
 	 */

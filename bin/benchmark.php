@@ -120,10 +120,10 @@ function ntrnllnk_posts_exported( string $file ): array {
  *
  * Mirrors `Plugin::build()`, without WordPress.
  *
- * @param array<int, array{title: string, content: string, time: int}> $posts         Posts by ID.
- * @param int                                                          $count         Number of related posts per post; 0 skips ranking.
+ * @param array<int, array{title: string, content: string, time: int}> $posts Posts by ID.
+ * @param int                                                          $count Number of related posts per post; 0 skips ranking.
  * @param int                                                          $frequency_max Maximum number of posts a feature may be in.
- * @param bool                                                         $compare       Whether to compare with ranking that keeps all features.
+ * @param bool                                                         $compare Whether to compare with ranking that keeps all features.
  */
 function ntrnllnk_benchmark( array $posts, int $count, int $frequency_max, bool $compare ): string {
 	$time       = microtime( true );

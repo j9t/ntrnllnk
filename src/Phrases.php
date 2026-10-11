@@ -34,7 +34,7 @@ final class Phrases {
 	 * Returns the phrases that identify posts, each with its post’s ID
 	 *
 	 * @param array<int, array<string, int>> $mentions Posts by ID, with their title’s candidates and how often their text mentions them (see `mentions()`).
-	 * @param array<int, int>                $times    Publication times by post ID, to break ties (newer first, then higher ID).
+	 * @param array<int, int>                $times Publication times by post ID, to break ties (newer first, then higher ID).
 	 * @return array<string, int>
 	 */
 	public static function extract( array $mentions, array $times = [] ): array {
@@ -66,8 +66,8 @@ final class Phrases {
 	 *
 	 * Lets callers keep counts instead of texts, so that all posts’ texts need not be in memory at once.
 	 *
-	 * @param string $title        Plain-text title.
-	 * @param string $text         Plain text.
+	 * @param string $title Plain-text title.
+	 * @param string $text Plain text.
 	 * @param bool   $words_single Whether single words are candidates, too.
 	 * @return array<string, int>
 	 */
@@ -172,7 +172,7 @@ final class Phrases {
 	 * Returns how often a text mentions a phrase, case-sensitively and including the genitive
 	 *
 	 * @param string $phrase Phrase.
-	 * @param string $text   Plain text.
+	 * @param string $text Plain text.
 	 */
 	public static function count_mentions( string $phrase, string $text ): int {
 		return (int) preg_match_all( '/(?<![\p{L}\p{N}])' . preg_quote( $phrase, '/' ) . '(?:s|’s|\'s)?(?![\p{L}\p{N}])/u', $text );

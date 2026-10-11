@@ -34,11 +34,11 @@ final class Document {
 	/**
 	 * Creates a document
 	 *
-	 * @param int                $id    Post ID.
+	 * @param int                $id Post ID.
 	 * @param array<string, int> $words Stemmed words and their weighted counts.
 	 * @param string[]           $links Normalized link targets.
 	 * @param int[]              $terms Term IDs.
-	 * @param int                $time  Publication time (Unix timestamp).
+	 * @param int                $time Publication time (Unix timestamp).
 	 */
 	public function __construct(
 		public readonly int $id,
@@ -51,13 +51,13 @@ final class Document {
 	/**
 	 * Creates a document from post data
 	 *
-	 * @param int       $id        Post ID.
-	 * @param string    $title     Post title.
-	 * @param string    $html      Post content.
-	 * @param int[]     $terms     Term IDs.
-	 * @param int       $time      Publication time (Unix timestamp).
+	 * @param int       $id Post ID.
+	 * @param string    $title Post title.
+	 * @param string    $html Post content.
+	 * @param int[]     $terms Term IDs.
+	 * @param int       $time Publication time (Unix timestamp).
 	 * @param Tokenizer $tokenizer Tokenizer for the site language.
-	 * @param string    $url_base  Site URL, to resolve root-relative links.
+	 * @param string    $url_base Site URL, to resolve root-relative links.
 	 */
 	public static function from_post( int $id, string $title, string $html, array $terms, int $time, Tokenizer $tokenizer, string $url_base = '' ): self {
 		$words = [];
@@ -71,7 +71,7 @@ final class Document {
 	/**
 	 * Adds weighted tokens to word counts
 	 *
-	 * @param array<string, int> $words  Word counts.
+	 * @param array<string, int> $words Word counts.
 	 * @param string[]           $tokens Tokens.
 	 * @param int                $weight Weight per occurrence.
 	 */

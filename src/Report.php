@@ -145,7 +145,7 @@ final class Report {
 	/**
 	 * Returns how many lists include each post, and which posts have a list, counting only what visitors see
 	 *
-	 * @param array<int, mixed> $related   Stored related posts per post ID.
+	 * @param array<int, mixed> $related Stored related posts per post ID.
 	 * @param float             $score_min Minimum score.
 	 * @return array{listed: array<int, int>, with_list: array<int, true>}
 	 */
@@ -205,10 +205,10 @@ final class Report {
 	/**
 	 * Returns the pagination, as in WordPress’s tables: the number of posts, and links to the first, previous, next, and last page
 	 *
-	 * @param int    $page  Current page.
+	 * @param int    $page Current page.
 	 * @param int    $pages Number of pages.
 	 * @param int    $count Number of posts.
-	 * @param string $url   URL of the report, with its filter.
+	 * @param string $url URL of the report, with its filter.
 	 */
 	public static function pagination_html( int $page, int $pages, int $count, string $url ): string {
 		/* translators: %s: Number of posts */
@@ -245,7 +245,7 @@ final class Report {
 	/**
 	 * Returns the links to filter the report, with the number of posts each shows
 	 *
-	 * @param array<string, int> $counts  Number of posts per filter (`''` for all).
+	 * @param array<string, int> $counts Number of posts per filter (`''` for all).
 	 * @param string             $current Current filter.
 	 */
 	public static function views_html( array $counts, string $current ): string {
@@ -266,9 +266,9 @@ final class Report {
 	/**
 	 * Returns the data of the rows for posts: their related posts, in-content links, and how many lists include them
 	 *
-	 * @param \WP_Post[]                                                                    $posts    Posts.
-	 * @param array<int, mixed>                                                             $related  Stored related posts per post ID.
-	 * @param array{listed: array<int, int>, with_list: array<int, true>}                   $index    Index from `index()`.
+	 * @param \WP_Post[]                                                                    $posts Posts.
+	 * @param array<int, mixed>                                                             $related Stored related posts per post ID.
+	 * @param array{listed: array<int, int>, with_list: array<int, true>}                   $index Index from `index()`.
 	 * @param array{count: int, links_inline: bool, score_min: float, post_types: string[]} $settings Settings.
 	 * @return list<Row>
 	 */
@@ -369,10 +369,10 @@ final class Report {
 	/**
 	 * Returns a query of published posts, newest first
 	 *
-	 * @param string[] $post_types   Post types.
+	 * @param string[] $post_types Post types.
 	 * @param int[]    $ids_excluded IDs of posts to leave out.
-	 * @param int      $count        Number of posts per page.
-	 * @param int      $page         Page.
+	 * @param int      $count Number of posts per page.
+	 * @param int      $page Page.
 	 */
 	private static function query( array $post_types, array $ids_excluded, int $count, int $page ): \WP_Query {
 		return new \WP_Query(

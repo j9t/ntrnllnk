@@ -16,11 +16,11 @@ final class RankerTest extends TestCase {
 	/**
 	 * Builds a document from a word list (one occurrence each)
 	 *
-	 * @param int      $id    Post ID.
+	 * @param int      $id Post ID.
 	 * @param string[] $words Words.
 	 * @param string[] $links Normalized link targets.
 	 * @param int[]    $terms Term IDs.
-	 * @param int      $time  Publication time.
+	 * @param int      $time Publication time.
 	 */
 	private function document( int $id, array $words, array $links = [], array $terms = [], int $time = 0 ): Document {
 		return new Document( $id, array_fill_keys( $words, 1 ), $links, $terms, $time );

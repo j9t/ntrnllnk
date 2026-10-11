@@ -44,8 +44,8 @@ final class ReportTest extends TestCase {
 	 * Returns a row’s data
 	 *
 	 * @param Related|null $related Related posts.
-	 * @param Links|null   $links   In-content links.
-	 * @param int          $listed  Number of lists with the post.
+	 * @param Links|null   $links In-content links.
+	 * @param int          $listed Number of lists with the post.
 	 * @return Row
 	 */
 	private function row( ?array $related = [], ?array $links = [], int $listed = 0 ): array {

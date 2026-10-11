@@ -44,8 +44,8 @@ final class Linker {
 	 *
 	 * Matches are case-sensitive and respect word boundaries; at the same position, longer phrases win. Each target is linked once, and each paragraph (or other block) gets one link at most, so that links spread out.
 	 *
-	 * @param string                $html  HTML.
-	 * @param array<string, string> $urls  Phrases and their target URLs.
+	 * @param string                $html HTML.
+	 * @param array<string, string> $urls Phrases and their target URLs.
 	 * @param int                   $count Maximum number of links.
 	 * @param string                $class_link Class of the links, if any.
 	 * @param array<string, string> $linked Phrases that got linked, with their target URLs, in order.
@@ -100,7 +100,7 @@ final class Linker {
 	 * Text in HTML is escaped, so phrases are, too; this may keep phrases that `link()` will not link (like those in attributes), but never drops one it would link.
 	 *
 	 * @template T
-	 * @param string           $html    HTML.
+	 * @param string           $html HTML.
 	 * @param array<string, T> $phrases Phrases, with any values.
 	 * @return array<string, T>
 	 */
@@ -112,7 +112,7 @@ final class Linker {
 	 * Links the first phrase mention in a text node, if any, and removes its target
 	 *
 	 * @param string                $text Text node (HTML-escaped).
-	 * @param array<string, string> $urls  Phrases and their target URLs, longest first.
+	 * @param array<string, string> $urls Phrases and their target URLs, longest first.
 	 * @param string                $class_link Class of the link, if any.
 	 * @param array<string, string> $linked Phrases linked so far, with their target URLs.
 	 */

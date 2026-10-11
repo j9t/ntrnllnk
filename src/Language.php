@@ -27,7 +27,7 @@ final class Language {
 	/**
 	 * Returns the language of a text, or the fallback if the text gives no clear answer
 	 *
-	 * @param string $text     Plain text.
+	 * @param string $text Plain text.
 	 * @param string $fallback Language to return without a clear answer, e.g., the site language.
 	 */
 	public static function detect( string $text, string $fallback ): string {

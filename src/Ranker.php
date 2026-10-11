@@ -48,8 +48,8 @@ final class Ranker {
 	/**
 	 * Creates a ranker
 	 *
-	 * @param array<string, float> $weights       Weights per signal (`words`, `links`); missing ones use the defaults.
-	 * @param float                $score_min     Minimum score for a document to count as related.
+	 * @param array<string, float> $weights Weights per signal (`words`, `links`); missing ones use the defaults.
+	 * @param float                $score_min Minimum score for a document to count as related.
 	 * @param int                  $frequency_max Maximum number of documents a feature may be in; features in more are skipped.
 	 */
 	public function __construct( array $weights = [], private float $score_min = 0.04, private int $frequency_max = self::FREQUENCY_MAX ) {
@@ -60,7 +60,7 @@ final class Ranker {
 	 * Returns the most related documents for each document
 	 *
 	 * @param Document[] $documents Documents.
-	 * @param int        $count     Maximum number of related documents per document.
+	 * @param int        $count Maximum number of related documents per document.
 	 * @return array<int, array<int, array<string, float>>> Document ID => related document IDs, best first => weighted similarity per contributing signal, adding up to the score.
 	 */
 	public function related( array $documents, int $count ): array {
@@ -126,8 +126,8 @@ final class Ranker {
 	/**
 	 * Returns the weighted similarity of two documents per signal, leaving out signals without any
 	 *
-	 * @param array<string, array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>, 2: float}> $signals  Indexes and weights per signal.
-	 * @param int                                                                                                            $index       Document’s position.
+	 * @param array<string, array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>, 2: float}> $signals Indexes and weights per signal.
+	 * @param int                                                                                                            $index Document’s position.
 	 * @param int                                                                                                            $index_other Other document’s position.
 	 * @return array<string, float>
 	 */
@@ -152,7 +152,7 @@ final class Ranker {
 	 * Keeps only features that occur in more than one document and in no more than the maximum; skipped features still count toward the norm, so that scores keep their scale.
 	 *
 	 * @param Document[] $documents Documents, by position.
-	 * @param string     $signal    Signal (`words`, `links`).
+	 * @param string     $signal Signal (`words`, `links`).
 	 * @return array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>}
 	 */
 	private function index( array $documents, string $signal ): array {
@@ -192,7 +192,7 @@ final class Ranker {
 	 * Returns a document’s feature counts for a signal
 	 *
 	 * @param Document $document Document.
-	 * @param string   $signal   Signal (`words`, `links`).
+	 * @param string   $signal Signal (`words`, `links`).
 	 * @return array<int|string, int>
 	 */
 	private static function bag( Document $document, string $signal ): array {
