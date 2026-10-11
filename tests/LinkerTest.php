@@ -61,6 +61,58 @@ final class LinkerTest extends TestCase {
 		$this->assertSame( '<!-- Agatha Christie --><p><a href="/christie/">Agatha Christie</a></p>', Linker::link( $html, self::URLS, 3 ) );
 	}
 
+	public function test_link_skips_attribute_values_with_angle_brackets(): void {
+		$html = '<p><span title="a > Agatha Christie <img src=x onerror=alert(1)>">Text</span> <span title=\'b > Harry Potter\'>Text</span></p><p>Agatha Christie</p>';
+
+		$this->assertSame(
+			'<p><span title="a > Agatha Christie <img src=x onerror=alert(1)>">Text</span> <span title=\'b > Harry Potter\'>Text</span></p><p><a href="/christie/">Agatha Christie</a></p>',
+			Linker::link( $html, self::URLS, 3 )
+		);
+	}
+
+	public function test_link_skips_raw_text_elements_with_tag_like_content(): void {
+		$html = '<script>var s = "</a>"; var t = "Agatha Christie";</script><style>/* </code> */ .Harry Potter {}</style><textarea></a> Agatha Christie</textarea><p>Agatha Christie</p>';
+
+		$this->assertSame(
+			'<script>var s = "</a>"; var t = "Agatha Christie";</script><style>/* </code> */ .Harry Potter {}</style><textarea></a> Agatha Christie</textarea><p><a href="/christie/">Agatha Christie</a></p>',
+			Linker::link( $html, self::URLS, 3 )
+		);
+	}
+
+	public function test_link_treats_unclosed_raw_text_elements_as_running_to_the_end(): void {
+		$html = '<p>Harry Potter</p>' . str_repeat( '<textarea>Agatha Christie ', 20000 );
+
+		$time = microtime( true );
+
+		$this->assertSame( '<p><a href="/potter/">Harry Potter</a></p>' . str_repeat( '<textarea>Agatha Christie ', 20000 ), Linker::link( $html, self::URLS, 3 ) );
+		// Generous, as it takes milliseconds, but seconds if each element scanned to the end
+		$this->assertLessThan( 1, microtime( true ) - $time );
+	}
+
+	public function test_link_treats_unclosed_tags_as_running_to_the_end(): void {
+		$html = '<p>Harry Potter</p>' . str_repeat( '<p title="Agatha Christie ', 20000 );
+		$time = microtime( true );
+
+		$this->assertSame( '<p><a href="/potter/">Harry Potter</a></p>' . str_repeat( '<p title="Agatha Christie ', 20000 ), Linker::link( $html, self::URLS, 3 ) );
+		$this->assertLessThan( 1, microtime( true ) - $time );
+	}
+
+	public function test_link_skips_text_after_unclosed_attribute_quotes(): void {
+		$html = '<p>Harry Potter</p><p><span title="a>Text</span> Agatha Christie <img src=x onerror=alert(1)></p>';
+
+		$this->assertSame(
+			'<p><a href="/potter/">Harry Potter</a></p><p><span title="a>Text</span> Agatha Christie <img src=x onerror=alert(1)></p>',
+			Linker::link( $html, self::URLS, 3 )
+		);
+	}
+
+	public function test_link_handles_quotes_outside_attribute_values(): void {
+		$this->assertSame(
+			'<p><span data-x=It\'s>Text</span> and <a href="/christie/">Agatha Christie</a>, \'quoted\'</p>',
+			Linker::link( '<p><span data-x=It\'s>Text</span> and Agatha Christie, \'quoted\'</p>', self::URLS, 3 )
+		);
+	}
+
 	public function test_link_links_once_per_paragraph(): void {
 		$this->assertSame(
 			'<p><a href="/potter/">Harry Potter</a> and <em>Agatha Christie</em></p><ul><li><a href="/christie/">Agatha Christie</a></li></ul>',

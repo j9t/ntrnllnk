@@ -25,6 +25,16 @@ final class Linker {
 	private const ELEMENTS_BLOCK = [ 'address', 'article', 'aside', 'blockquote', 'dd', 'details', 'div', 'dl', 'dt', 'figure', 'footer', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'hr', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'ul' ];
 
 	/**
+	 * Elements whose content is text, not markup, even if it looks like tags
+	 */
+	private const ELEMENTS_RAW = [ 'script', 'style', 'textarea' ];
+
+	/**
+	 * Inside of a tag, where quoted attribute values may contain “>” and, unclosed, run to the end, as in browsers; possessive, so that matching stays linear
+	 */
+	private const TAG_INSIDE = '(?:[^>=]|=\s*+(?>"[^"]*+(?:"|\z)|\'[^\']*+(?:\'|\z))?+)*+';
+
+	/**
 	 * Genitive endings a link includes (“Agatha Christies,” “Agatha Christie’s”)
 	 */
 	private const SUFFIXES = '(?:s|’s|&#8217;s|\'s)?';
@@ -47,7 +57,9 @@ final class Linker {
 		}
 		uksort( $urls, fn( string $a, string $b ): int => mb_strlen( $b ) <=> mb_strlen( $a ) );
 
-		$tokens = preg_split( '/(<!--.*?-->|<[^>]*>)/s', $html, -1, PREG_SPLIT_DELIM_CAPTURE );
+		// Raw text elements as one token each; unclosed tags and elements run to the end, as in browsers
+		$elements_raw = implode( '|', array_map( fn( string $element ): string => '<' . $element . '\b' . self::TAG_INSIDE . '>.*?(?:<\/' . $element . '\s*>|\z)', self::ELEMENTS_RAW ) );
+		$tokens       = preg_split( '/(<!--.*?-->|' . $elements_raw . '|<' . self::TAG_INSIDE . '(?:>|\z))/is', $html, -1, PREG_SPLIT_DELIM_CAPTURE );
 		if ( false === $tokens ) {
 			return $html;
 		}
@@ -61,7 +73,8 @@ final class Linker {
 				}
 				$element = strtolower( $match[2] );
 				if ( in_array( $element, self::ELEMENTS_SKIP, true ) ) {
-					$depth_skip = '/' === $match[1] ? max( 0, $depth_skip - 1 ) : $depth_skip + ( str_ends_with( $token, '/>' ) ? 0 : 1 );
+					$closed     = str_ends_with( $token, '/>' ) || preg_match( '/<\/' . $element . '\s*>$/i', $token );
+					$depth_skip = '/' === $match[1] ? max( 0, $depth_skip - 1 ) : $depth_skip + ( $closed ? 0 : 1 );
 				}
 				if ( in_array( $element, self::ELEMENTS_BLOCK, true ) ) {
 					$block_linked = false;

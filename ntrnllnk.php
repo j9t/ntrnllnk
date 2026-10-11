@@ -3,7 +3,7 @@
  * Plugin Name:       ntrnllnk
  * Plugin URI:        https://github.com/j9t/ntrnllnk
  * Description:       Links related posts based on their content and links.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Jens Oliver Meiert
@@ -21,8 +21,13 @@ defined( 'ABSPATH' ) || exit;
 
 spl_autoload_register(
 	static function ( string $class_name ): void {
-		if ( str_starts_with( $class_name, 'Ntrnllnk\\' ) ) {
-			require __DIR__ . '/src/' . substr( $class_name, strlen( 'Ntrnllnk\\' ) ) . '.php';
+		// Unknown classes are left to other autoloaders, as `class_exists()` expects
+		if ( ! preg_match( '/^Ntrnllnk\\\\(\w+)$/', $class_name, $match ) ) {
+			return;
+		}
+		$file = __DIR__ . '/src/' . $match[1] . '.php';
+		if ( is_file( $file ) ) {
+			require $file;
 		}
 	}
 );

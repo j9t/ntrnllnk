@@ -4,6 +4,14 @@ All notable changes to ntrnllnk are documented in this file, which is (mostly) A
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-10-11
+
+### Fixed
+
+* Stopped in-content links from going into attribute values that contain “>” or lack a closing quote, where they could turn inert markup into live HTML
+* Stopped in-content links from going into scripts, styles, and text areas whose content looks like tags
+* Stopped the autoloader from failing fatally on unknown `Ntrnllnk\` classes, leaving them to other autoloaders
+
 ## [1.1.0] - 2026-10-10
 
 ### Fixed
