@@ -104,7 +104,7 @@ final class Extract {
 	}
 
 	/**
-	 * Returns an absolute HTTP(S) URL as host and path, without “www.,” query, fragment, and trailing slash, and with the path decoded, so that it is the same however encoded
+	 * Returns an absolute HTTP(S) URL as host and path, without “www.,” query, fragment, and trailing slash, and with the path decoded (but for slashes, which would change it), so that it is the same however encoded
 	 *
 	 * @param string $url URL.
 	 */
@@ -117,7 +117,7 @@ final class Extract {
 		}
 		$host = preg_replace( '/^www\./', '', strtolower( $parts['host'] ) );
 
-		return $host . rtrim( rawurldecode( $parts['path'] ?? '' ), '/' );
+		return $host . rtrim( rawurldecode( (string) preg_replace( '/%2F/i', '%252F', $parts['path'] ?? '' ) ), '/' );
 	}
 
 	/**

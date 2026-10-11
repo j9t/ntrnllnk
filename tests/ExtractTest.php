@@ -98,6 +98,11 @@ final class ExtractTest extends TestCase {
 		$this->assertSame( 'example.com/агата', Extract::normalize_url( 'https://example.com/%D0%B0%D0%B3%D0%B0%D1%82%D0%B0' ) );
 	}
 
+	public function test_normalize_url_keeps_encoded_slashes(): void {
+		$this->assertSame( 'example.com/foo%2Fbar', Extract::normalize_url( 'https://example.com/foo%2fbar' ) );
+		$this->assertSame( 'example.com/foo%2F', Extract::normalize_url( 'https://example.com/foo%2F' ) );
+	}
+
 	public function test_normalize_url_rejects_invalid_urls(): void {
 		$this->assertNull( Extract::normalize_url( 'https://' ) );
 	}
