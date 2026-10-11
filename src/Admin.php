@@ -262,7 +262,7 @@ final class Admin {
 	/**
 	 * Returns a setting’s default as shown on the settings page, or an empty string for empty defaults and defaults shown as placeholders
 	 *
-	 * @param string                                                   $key   Setting.
+	 * @param string                                                   $key Setting.
 	 * @param array{type: string, choices?: array<int|string, string>} $field Field.
 	 */
 	private static function default( string $key, array $field ): string {

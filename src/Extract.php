@@ -63,7 +63,7 @@ final class Extract {
 	 *
 	 * Root-relative targets are resolved against `$url_base`, if given; other relative targets are skipped.
 	 *
-	 * @param string $html     HTML.
+	 * @param string $html HTML.
 	 * @param string $url_base Site URL, e.g., `https://example.com`.
 	 * @return string[]
 	 */
@@ -76,7 +76,7 @@ final class Extract {
 	 *
 	 * Root-relative targets are resolved against `$url_base`, if given; other relative targets are skipped.
 	 *
-	 * @param string $html     HTML.
+	 * @param string $html HTML.
 	 * @param string $url_base Site URL, e.g., `https://example.com`.
 	 * @return string[]
 	 */
@@ -104,18 +104,32 @@ final class Extract {
 	}
 
 	/**
-	 * Returns an absolute HTTP(S) URL as host and path, without “www.,” query, fragment, and trailing slash
+	 * Returns an absolute HTTP(S) URL as host and path, without “www.,” query, fragment, and trailing slash, and with the path decoded (but for slashes, which would change it), so that it is the same however encoded
 	 *
 	 * @param string $url URL.
 	 */
 	public static function normalize_url( string $url ): ?string {
+		// Non-ASCII characters encoded first, as `parse_url()` replaces some of their bytes
+		$url   = (string) preg_replace_callback( '/[^\x00-\x7F]+/', fn( array $matches ): string => rawurlencode( $matches[0] ), $url );
 		$parts = parse_url( $url ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- Kept WordPress-independent
 		if ( ! is_array( $parts ) || empty( $parts['host'] ) || ! in_array( strtolower( $parts['scheme'] ?? '' ), [ 'http', 'https' ], true ) ) {
 			return null;
 		}
 		$host = preg_replace( '/^www\./', '', strtolower( $parts['host'] ) );
 
-		return $host . rtrim( $parts['path'] ?? '', '/' );
+		return $host . rtrim( rawurldecode( (string) preg_replace( '/%2F/i', '%252F', $parts['path'] ?? '' ) ), '/' );
+	}
+
+	/**
+	 * Returns the ID of the post a URL names in its query (`?p=123`, `?page_id=123`), or null if it names none
+	 *
+	 * @param string $url URL.
+	 */
+	public static function id( string $url ): ?int {
+		parse_str( (string) parse_url( $url, PHP_URL_QUERY ), $query ); // phpcs:ignore WordPress.WP.AlternativeFunctions.parse_url_parse_url -- Kept WordPress-independent
+		$id = $query['p'] ?? $query['page_id'] ?? null;
+
+		return is_string( $id ) && ctype_digit( $id ) ? (int) $id : null;
 	}
 
 	/**

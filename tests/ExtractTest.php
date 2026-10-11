@@ -92,7 +92,29 @@ final class ExtractTest extends TestCase {
 		$this->assertSame( 'example.com', Extract::normalize_url( 'https://www.example.com/?a=b' ) );
 	}
 
+	public function test_normalize_url_decodes_paths_however_encoded(): void {
+		$this->assertSame( 'example.com/агата', Extract::normalize_url( 'https://example.com/агата/' ) );
+		$this->assertSame( 'example.com/агата', Extract::normalize_url( 'https://example.com/%d0%b0%d0%b3%d0%b0%d1%82%d0%b0/' ) );
+		$this->assertSame( 'example.com/агата', Extract::normalize_url( 'https://example.com/%D0%B0%D0%B3%D0%B0%D1%82%D0%B0' ) );
+	}
+
+	public function test_normalize_url_keeps_encoded_slashes(): void {
+		$this->assertSame( 'example.com/foo%2Fbar', Extract::normalize_url( 'https://example.com/foo%2fbar' ) );
+		$this->assertSame( 'example.com/foo%2F', Extract::normalize_url( 'https://example.com/foo%2F' ) );
+	}
+
 	public function test_normalize_url_rejects_invalid_urls(): void {
 		$this->assertNull( Extract::normalize_url( 'https://' ) );
+	}
+
+	public function test_id_returns_post_id_from_query(): void {
+		$this->assertSame( 12, Extract::id( 'https://example.com/?p=12' ) );
+		$this->assertSame( 13, Extract::id( 'https://example.com/?preview=true&page_id=13#top' ) );
+	}
+
+	public function test_id_returns_null_without_post_id(): void {
+		$this->assertNull( Extract::id( 'https://example.com/12/' ) );
+		$this->assertNull( Extract::id( 'https://example.com/?s=p=12' ) );
+		$this->assertNull( Extract::id( 'https://example.com/?p=abc' ) );
 	}
 }

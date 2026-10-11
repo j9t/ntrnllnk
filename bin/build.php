@@ -20,7 +20,7 @@ const NTRNLLNK_FILES_DEV = [ '.git', 'bin', 'composer.json', 'composer.lock', 'p
  * Runs a command in the project root and returns its output
  *
  * @param string[]              $command Command and arguments.
- * @param array<string, string> $env     Additional environment variables.
+ * @param array<string, string> $env Additional environment variables.
  * @phpstan-param list<string> $command
  * @throws RuntimeException If the command fails.
  */

@@ -63,7 +63,7 @@ final class Settings {
 	/**
 	 * Returns complete, valid settings from form input; invalid values fall back to their defaults, missing checkboxes count as off
 	 *
-	 * @param array<string, mixed> $input      Form input.
+	 * @param array<string, mixed> $input Form input.
 	 * @param string[]|null        $post_types Available post types, or null to keep all.
 	 * @return Values
 	 */
@@ -118,11 +118,11 @@ final class Settings {
 	/**
 	 * Returns a whole number, limited to a range, or the default if the value is not numeric (or, with `$strict`, out of range)
 	 *
-	 * @param mixed $value    Value.
+	 * @param mixed $value Value.
 	 * @param int   $fallback Default.
-	 * @param int   $min      Minimum.
-	 * @param int   $max      Maximum.
-	 * @param bool  $strict   Whether values out of range fall back to the default instead of being limited.
+	 * @param int   $min Minimum.
+	 * @param int   $max Maximum.
+	 * @param bool  $strict Whether values out of range fall back to the default instead of being limited.
 	 */
 	private static function integer( mixed $value, int $fallback, int $min, int $max, bool $strict = false ): int {
 		if ( ! is_numeric( $value ) || ( $strict && ( $value < $min || $value > $max ) ) ) {
@@ -136,8 +136,8 @@ final class Settings {
 	 * Returns a value limited to a range
 	 *
 	 * @param int|float $value Value.
-	 * @param int|float $min   Minimum.
-	 * @param int|float $max   Maximum.
+	 * @param int|float $min Minimum.
+	 * @param int|float $max Maximum.
 	 */
 	private static function clamp( int|float $value, int|float $min, int|float $max ): int|float {
 		return min( $max, max( $min, $value ) );
@@ -146,7 +146,7 @@ final class Settings {
 	/**
 	 * Returns a setting’s value if it is one of its choices, else its default
 	 *
-	 * @param array<string, mixed> $input   Form input.
+	 * @param array<string, mixed> $input Form input.
 	 * @param string               $setting Setting.
 	 */
 	private static function choice( array $input, string $setting ): string {

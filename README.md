@@ -131,9 +131,9 @@ The rebuild does notice it, as it compares all posts with each other for the lis
 
 | Posts | Time | Memory |
 | --- | --- | --- |
-| 1,000 | 2 seconds | 70 MB |
-| 5,000 | 10 seconds | 290 MB |
-| 10,000 | 25 seconds | 540 MB |
+| 1,000 | 1 second | 70 MB |
+| 5,000 | 7 seconds | 290 MB |
+| 10,000 | 15 seconds | 540 MB |
 
 Up to a few thousand posts, the rebuild fits into the 256 MB that WordPress allows by default. Beyond about 4,000 posts, it may need more: Raise `WP_MAX_MEMORY_LIMIT` (in wp-config.php), or the limit for ntrnllnk alone, via the `ntrnllnk_memory_limit` filter. If PHP’s time limit (`max_execution_time`) is low, a rebuild may also run out of time; then, it doesn’t update related posts, and the previous ones stay. On large sites, it helps to run WP-Cron [via the system’s cron](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/) rather than on page views.
 

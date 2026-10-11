@@ -48,8 +48,8 @@ final class Ranker {
 	/**
 	 * Creates a ranker
 	 *
-	 * @param array<string, float> $weights       Weights per signal (`words`, `links`); missing ones use the defaults.
-	 * @param float                $score_min     Minimum score for a document to count as related.
+	 * @param array<string, float> $weights Weights per signal (`words`, `links`); missing ones use the defaults.
+	 * @param float                $score_min Minimum score for a document to count as related.
 	 * @param int                  $frequency_max Maximum number of documents a feature may be in; features in more are skipped.
 	 */
 	public function __construct( array $weights = [], private float $score_min = 0.04, private int $frequency_max = self::FREQUENCY_MAX ) {
@@ -60,34 +60,47 @@ final class Ranker {
 	 * Returns the most related documents for each document
 	 *
 	 * @param Document[] $documents Documents.
-	 * @param int        $count     Maximum number of related documents per document.
+	 * @param int        $count Maximum number of related documents per document.
 	 * @return array<int, array<int, array<string, float>>> Document ID => related document IDs, best first => weighted similarity per contributing signal, adding up to the score.
 	 */
 	public function related( array $documents, int $count ): array {
-		$times   = [];
-		$signals = [];
+		// Documents by position from here on, so that scores fit into a list, which is faster to add to than a map
+		$documents = array_values( $documents );
+		$ids       = [];
+		$times     = [];
+		$signals   = [];
 		foreach ( $documents as $document ) {
+			$ids[]                  = $document->id;
 			$times[ $document->id ] = $document->time;
 		}
+		$indexes = array_flip( $ids );
 		foreach ( $this->weights as $signal => $weight ) {
 			$signals[ $signal ] = [ ...$this->index( $documents, $signal ), $weight ];
 		}
 
 		// Scored one document at a time, so that memory grows with the number of documents, not of pairs
 		$related = [];
-		foreach ( $documents as $document ) {
-			$scores = [];
+		$zeros   = array_fill( 0, count( $documents ), 0.0 );
+		foreach ( $documents as $index => $document ) {
+			$scores = $zeros;
 			foreach ( $signals as [ $features, $postings, $weight ] ) {
-				foreach ( $features[ $document->id ] as $feature ) {
-					$value = $weight * $postings[ $feature ][ $document->id ];
-					foreach ( $postings[ $feature ] as $id_other => $value_other ) {
-						$scores[ $id_other ] = ( $scores[ $id_other ] ?? 0.0 ) + $value * $value_other;
+				foreach ( $features[ $index ] as $feature ) {
+					$value = $weight * $postings[ $feature ][ $index ];
+					foreach ( $postings[ $feature ] as $index_other => $value_other ) {
+						$scores[ $index_other ] += $value * $value_other;
 					}
 				}
 			}
-			unset( $scores[ $document->id ] );
+			$scores[ $index ] = 0.0;
 
-			$scores = array_filter( $scores, fn( float $score ): bool => $score >= $this->score_min );
+			// Documents sharing no feature dropped natively first, so that few are left to compare in PHP
+			$scores_kept = [];
+			foreach ( array_filter( $scores ) as $index_other => $score ) {
+				if ( $score >= $this->score_min ) {
+					$scores_kept[ $ids[ $index_other ] ] = $score;
+				}
+			}
+			$scores = $scores_kept;
 			if ( $count > 0 && count( $scores ) > $count ) {
 				// Narrowed with a fast sort to the scores that can make the cut, so that the slow sort below gets few
 				arsort( $scores );
@@ -103,7 +116,7 @@ final class Ranker {
 			// Split by signal only for the few related documents, so that scoring above stays lean
 			$related[ $document->id ] = [];
 			foreach ( array_keys( array_slice( $scores, 0, $count, true ) ) as $id_other ) {
-				$related[ $document->id ][ $id_other ] = self::parts( $signals, $document->id, $id_other );
+				$related[ $document->id ][ $id_other ] = self::parts( $signals, $index, $indexes[ $id_other ] );
 			}
 		}//end foreach
 
@@ -113,17 +126,17 @@ final class Ranker {
 	/**
 	 * Returns the weighted similarity of two documents per signal, leaving out signals without any
 	 *
-	 * @param array<string, array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>, 2: float}> $signals  Indexes and weights per signal.
-	 * @param int                                                                                                            $id       Document ID.
-	 * @param int                                                                                                            $id_other Other document’s ID.
+	 * @param array<string, array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>, 2: float}> $signals Indexes and weights per signal.
+	 * @param int                                                                                                            $index Document’s position.
+	 * @param int                                                                                                            $index_other Other document’s position.
 	 * @return array<string, float>
 	 */
-	private static function parts( array $signals, int $id, int $id_other ): array {
+	private static function parts( array $signals, int $index, int $index_other ): array {
 		$parts = [];
 		foreach ( $signals as $signal => [ $features, $postings, $weight ] ) {
 			$similarity = 0.0;
-			foreach ( $features[ $id ] as $feature ) {
-				$similarity += $postings[ $feature ][ $id ] * ( $postings[ $feature ][ $id_other ] ?? 0.0 );
+			foreach ( $features[ $index ] as $feature ) {
+				$similarity += $postings[ $feature ][ $index ] * ( $postings[ $feature ][ $index_other ] ?? 0.0 );
 			}
 			if ( $similarity > 0 ) {
 				$parts[ $signal ] = $weight * $similarity;
@@ -134,12 +147,12 @@ final class Ranker {
 	}
 
 	/**
-	 * Returns a signal’s TF-IDF unit vectors, as the features of each document and the documents of each feature, with the feature’s value in them
+	 * Returns a signal’s TF-IDF unit vectors, as the features of each document and the documents of each feature, with the feature’s value in them, by the documents’ positions
 	 *
 	 * Keeps only features that occur in more than one document and in no more than the maximum; skipped features still count toward the norm, so that scores keep their scale.
 	 *
-	 * @param Document[] $documents Documents.
-	 * @param string     $signal    Signal (`words`, `links`).
+	 * @param Document[] $documents Documents, by position.
+	 * @param string     $signal Signal (`words`, `links`).
 	 * @return array{0: array<int, array<int, int|string>>, 1: array<int|string, array<int, float>>}
 	 */
 	private function index( array $documents, string $signal ): array {
@@ -153,7 +166,7 @@ final class Ranker {
 		$count_documents = count( $documents );
 		$features        = [];
 		$postings        = [];
-		foreach ( $documents as $document ) {
+		foreach ( $documents as $index => $document ) {
 			$vector = [];
 			foreach ( self::bag( $document, $signal ) as $feature => $count ) {
 				$value = ( 1 + log( $count ) ) * log( $count_documents / $frequencies[ $feature ] );
@@ -163,11 +176,11 @@ final class Ranker {
 			}
 			$norm = sqrt( array_sum( array_map( fn( float $value ): float => $value * $value, $vector ) ) );
 
-			$features[ $document->id ] = [];
+			$features[ $index ] = [];
 			foreach ( $vector as $feature => $value ) {
 				if ( $frequencies[ $feature ] > 1 && $frequencies[ $feature ] <= $this->frequency_max ) {
-					$features[ $document->id ][]           = $feature;
-					$postings[ $feature ][ $document->id ] = $value / $norm;
+					$features[ $index ][]           = $feature;
+					$postings[ $feature ][ $index ] = $value / $norm;
 				}
 			}
 		}
@@ -179,7 +192,7 @@ final class Ranker {
 	 * Returns a document’s feature counts for a signal
 	 *
 	 * @param Document $document Document.
-	 * @param string   $signal   Signal (`words`, `links`).
+	 * @param string   $signal Signal (`words`, `links`).
 	 * @return array<int|string, int>
 	 */
 	private static function bag( Document $document, string $signal ): array {

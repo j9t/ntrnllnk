@@ -161,7 +161,7 @@ final class Plugin {
 	 *
 	 * @param string   $status_new New status.
 	 * @param string   $status_old Old status.
-	 * @param \WP_Post $post       Post.
+	 * @param \WP_Post $post Post.
 	 */
 	public static function on_transition_post_status( string $status_new, string $status_old, \WP_Post $post ): void {
 		if ( ( 'publish' === $status_new ) !== ( 'publish' === $status_old ) && self::is_enabled( $post ) ) {
@@ -172,8 +172,8 @@ final class Plugin {
 	/**
 	 * Schedules a rebuild when a published post changes in a way that affects related posts
 	 *
-	 * @param int      $post_id     Post ID.
-	 * @param \WP_Post $post_after  Post after the update.
+	 * @param int      $post_id Post ID.
+	 * @param \WP_Post $post_after Post after the update.
 	 * @param \WP_Post $post_before Post before the update.
 	 */
 	public static function on_post_updated( int $post_id, \WP_Post $post_after, \WP_Post $post_before ): void {
@@ -195,7 +195,7 @@ final class Plugin {
 	 * Schedules a rebuild when a published post is deleted without going through the trash
 	 *
 	 * @param int      $post_id Post ID.
-	 * @param \WP_Post $post    Post.
+	 * @param \WP_Post $post Post.
 	 */
 	public static function on_before_delete_post( int $post_id, \WP_Post $post ): void {
 		if ( 'publish' === $post->post_status && self::is_enabled( $post ) ) {
@@ -206,12 +206,12 @@ final class Plugin {
 	/**
 	 * Schedules a rebuild when a published post’s terms change outside of saving it (as in bulk edits)
 	 *
-	 * @param int                     $id_object   Object ID.
-	 * @param array<int|string|mixed> $terms       Terms as given.
-	 * @param int[]                   $ids_tt      New term taxonomy IDs.
-	 * @param string                  $taxonomy    Taxonomy.
-	 * @param bool                    $append      Whether terms were appended.
-	 * @param int[]                   $ids_tt_old  Old term taxonomy IDs.
+	 * @param int                     $id_object Object ID.
+	 * @param array<int|string|mixed> $terms Terms as given.
+	 * @param int[]                   $ids_tt New term taxonomy IDs.
+	 * @param string                  $taxonomy Taxonomy.
+	 * @param bool                    $append Whether terms were appended.
+	 * @param int[]                   $ids_tt_old Old term taxonomy IDs.
 	 */
 	public static function on_set_object_terms( int $id_object, array $terms, array $ids_tt, string $taxonomy, bool $append, array $ids_tt_old ): void {
 		sort( $ids_tt );
@@ -228,10 +228,10 @@ final class Plugin {
 	/**
 	 * Schedules a rebuild when a term that posts had is deleted
 	 *
-	 * @param int    $id_term     Term ID.
-	 * @param int    $id_tt       Term taxonomy ID.
-	 * @param string $taxonomy   Taxonomy.
-	 * @param mixed  $term        Deleted term.
+	 * @param int    $id_term Term ID.
+	 * @param int    $id_tt Term taxonomy ID.
+	 * @param string $taxonomy Taxonomy.
+	 * @param mixed  $term Deleted term.
 	 * @param int[]  $ids_objects IDs of the objects that had the term.
 	 */
 	public static function on_delete_term( int $id_term, int $id_tt, string $taxonomy, mixed $term, array $ids_objects ): void {
@@ -256,7 +256,7 @@ final class Plugin {
 	/**
 	 * Rebuilds right away when settings saved for the first time change related posts or phrases
 	 *
-	 * @param string $option   Option name.
+	 * @param string $option Option name.
 	 * @param mixed  $settings Settings.
 	 */
 	public static function on_settings_added( string $option, mixed $settings ): void {
@@ -387,9 +387,12 @@ final class Plugin {
 		$score_min = $settings['debug'] ? $settings['score_min'] * self::FACTOR_DEBUG : $settings['score_min'];
 		$related   = $rank ? ( new Ranker( $settings['weights'], $score_min ) )->related( $documents, $settings['count'] ) : [];
 		unset( $documents );
-		update_option( self::OPTION_PHRASES, Phrases::extract( $mentions, $times ), $settings['links_inline'] );
+		$phrases = Phrases::extract( $mentions, $times );
+		// Autoloaded only up to the size WordPress autoloads by default, so that large sites do not load phrases on every request
+		$autoload = $settings['links_inline'] && strlen( (string) maybe_serialize( $phrases ) ) <= (int) apply_filters( 'wp_max_autoloaded_option_size', 150000, self::OPTION_PHRASES ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- Core filter
+		update_option( self::OPTION_PHRASES, $phrases, $autoload );
 		// `update_option()` changes autoloading only along with the value
-		wp_set_option_autoload( self::OPTION_PHRASES, $settings['links_inline'] );
+		wp_set_option_autoload( self::OPTION_PHRASES, $autoload );
 
 		$ids_stale = get_posts(
 			[
@@ -512,9 +515,9 @@ final class Plugin {
 		/**
 		 * Filters the HTML of the related posts
 		 *
-		 * @param string     $html  HTML.
+		 * @param string     $html HTML.
 		 * @param \WP_Post[] $posts Related posts.
-		 * @param int        $id    ID of the post they relate to.
+		 * @param int        $id ID of the post they relate to.
 		 */
 		return apply_filters( 'ntrnllnk_html', $html, $posts, $id );
 	}
@@ -522,7 +525,7 @@ final class Plugin {
 	/**
 	 * Returns the related posts that visitors see, leaving out near misses kept for debugging
 	 *
-	 * @param array<int, array<string, float>> $related   Related post IDs and their weighted similarity per signal.
+	 * @param array<int, array<string, float>> $related Related post IDs and their weighted similarity per signal.
 	 * @param float                            $score_min Minimum score.
 	 * @return array<int, array<string, float>>
 	 */
@@ -533,7 +536,7 @@ final class Plugin {
 	/**
 	 * Returns the debugging data of a related post: its score and the share of each signal
 	 *
-	 * @param array<string, float> $parts   Weighted similarity per contributing signal.
+	 * @param array<string, float> $parts Weighted similarity per contributing signal.
 	 * @param string[]             $signals All signals.
 	 */
 	private static function debugging( array $parts, array $signals ): string {
@@ -575,9 +578,9 @@ final class Plugin {
 	/**
 	 * Links the first mentions of other posts’ phrases in a post’s content, wherever it is shown
 	 *
-	 * @param int                $id      Post ID.
+	 * @param int                $id Post ID.
 	 * @param string             $content Post content, as filtered for display.
-	 * @param array<string, int> $linked  Phrases that got linked, with the IDs of the posts they link to.
+	 * @param array<string, int> $linked Phrases that got linked, with the IDs of the posts they link to.
 	 */
 	public static function link_post( int $id, string $content, array &$linked = [] ): string {
 		$linked   = [];
@@ -590,7 +593,7 @@ final class Plugin {
 		 * Filters the phrases to link in a post’s content
 		 *
 		 * @param array<string, int> $phrases Phrases and the IDs of the posts they link to.
-		 * @param int                $id      ID of the post whose content gets linked.
+		 * @param int                $id ID of the post whose content gets linked.
 		 */
 		$phrases = apply_filters( 'ntrnllnk_phrases', (array) get_option( self::OPTION_PHRASES, [] ), $id );
 		$phrases = array_diff_key( $phrases, array_flip( $settings['links_inline_exclude_phrases'] ) );
@@ -610,18 +613,26 @@ final class Plugin {
 				'posts_per_page' => -1,
 			]
 		);
-		// Posts the content links to, by ID, so that any form of their URLs counts (like `?p=123`)
-		$host_site  = (string) Extract::normalize_url( home_url( '/' ) );
-		$ids_linked = [];
-		foreach ( Extract::hrefs( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() ) as $href ) {
-			if ( str_starts_with( (string) Extract::normalize_url( $href ) . '/', $host_site . '/' ) ) {
-				$ids_linked[ url_to_postid( $href ) ] = true;
+
+		$urls     = [];
+		$ids_urls = [];
+		foreach ( $posts as $post ) {
+			$urls[ $post->ID ] = (string) get_permalink( $post );
+			// Plain permalinks (`?p=123`) are left to `Extract::id()`, as they would all normalize to the site
+			if ( null === Extract::id( $urls[ $post->ID ] ) ) {
+				$ids_urls[ (string) Extract::normalize_url( $urls[ $post->ID ] ) ] = $post->ID;
 			}
 		}
 
-		$urls = [];
-		foreach ( $posts as $post ) {
-			$urls[ $post->ID ] = (string) get_permalink( $post );
+		// Targets the content links to, by permalink or by ID (like `?p=123`), rather than by resolving each URL, which can take a query
+		$host_site  = (string) Extract::normalize_url( home_url( '/' ) );
+		$ids_linked = [];
+		foreach ( Extract::hrefs( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() ) as $href ) {
+			$url = (string) Extract::normalize_url( $href );
+			if ( str_starts_with( $url . '/', $host_site . '/' ) ) {
+				// Pages of paginated posts (`/book/2/`) count as the post
+				$ids_linked[ Extract::id( $href ) ?? $ids_urls[ $url ] ?? $ids_urls[ (string) preg_replace( '#/\d+$#', '', $url ) ] ?? 0 ] = true;
+			}
 		}
 
 		$urls_phrases = [];
@@ -667,7 +678,7 @@ final class Plugin {
 	 *
 	 * Reads from the term cache, which `build()` fills per batch.
 	 *
-	 * @param \WP_Post $post       Post.
+	 * @param \WP_Post $post Post.
 	 * @param string[] $taxonomies Taxonomies.
 	 * @return int[]
 	 */

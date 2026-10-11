@@ -3,7 +3,7 @@
  * Plugin Name:       ntrnllnk
  * Plugin URI:        https://github.com/j9t/ntrnllnk
  * Description:       Links related posts based on their content and links.
- * Version:           1.1.1
+ * Version:           1.1.2
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Jens Oliver Meiert

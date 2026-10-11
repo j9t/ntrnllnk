@@ -16,11 +16,11 @@ final class RankerTest extends TestCase {
 	/**
 	 * Builds a document from a word list (one occurrence each)
 	 *
-	 * @param int      $id    Post ID.
+	 * @param int      $id Post ID.
 	 * @param string[] $words Words.
 	 * @param string[] $links Normalized link targets.
 	 * @param int[]    $terms Term IDs.
-	 * @param int      $time  Publication time.
+	 * @param int      $time Publication time.
 	 */
 	private function document( int $id, array $words, array $links = [], array $terms = [], int $time = 0 ): Document {
 		return new Document( $id, array_fill_keys( $words, 1 ), $links, $terms, $time );
@@ -176,6 +176,22 @@ final class RankerTest extends TestCase {
 
 		$this->assertSame( [ 2, 3 ], array_keys( ( new Ranker( score_min: 0 ) )->related( $documents, 5 )[1] ) );
 		$this->assertSame( [], ( new Ranker( score_min: 0, frequency_max: 2 ) )->related( $documents, 5 )[1] );
+	}
+
+	public function test_related_handles_documents_keyed_by_id(): void {
+		$related = ( new Ranker() )->related(
+			[
+				20 => $this->document( 20, [ 'dragon', 'magic' ], [], [], 2 ),
+				7  => $this->document( 7, [ 'dragon', 'magic' ], [], [], 1 ),
+				35 => $this->document( 35, [ 'dragon', 'magic', 'elves' ] ),
+				3  => $this->document( 3, [ 'cooking', 'baking' ] ),
+			],
+			5
+		);
+
+		$this->assertSame( [ 20, 7, 35, 3 ], array_keys( $related ) );
+		$this->assertSame( [ 20, 35 ], array_keys( $related[7] ) );
+		$this->assertSame( [], $related[3] );
 	}
 
 	public function test_related_handles_empty_input(): void {

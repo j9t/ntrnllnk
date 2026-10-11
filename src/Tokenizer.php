@@ -57,6 +57,11 @@ final class Tokenizer {
 	private const LENGTH_WORD_MIN = 3;
 
 	/**
+	 * Maximum number of words cached, at about 150 bytes each
+	 */
+	private const COUNT_CACHE_MAX = 100000;
+
+	/**
 	 * Stopwords as a lookup table
 	 *
 	 * @var array<string, true>
@@ -64,11 +69,19 @@ final class Tokenizer {
 	private array $stopwords;
 
 	/**
+	 * Tokens of words seen before, or empty strings for words left out, as most words recur; emptied when full, as frequent words soon return
+	 *
+	 * @var array<string, string>
+	 */
+	private array $tokens = [];
+
+	/**
 	 * Creates a tokenizer for a language
 	 *
 	 * @param string $language ISO 639-1 code, e.g., `de`; other languages are only lowercased.
+	 * @param int    $count_cache_max Maximum number of words cached.
 	 */
-	public function __construct( private string $language ) {
+	public function __construct( private string $language, private int $count_cache_max = self::COUNT_CACHE_MAX ) {
 		$this->stopwords = Stopwords::for_language( $language );
 	}
 
@@ -82,10 +95,15 @@ final class Tokenizer {
 		$words  = preg_split( '/[^\p{L}\p{N}]+/u', mb_strtolower( $text ), -1, PREG_SPLIT_NO_EMPTY );
 		$tokens = [];
 		foreach ( false === $words ? [] : $words as $word ) {
-			if ( mb_strlen( $word ) < self::LENGTH_WORD_MIN || isset( $this->stopwords[ $word ] ) || preg_match( '/^\p{N}+$/u', $word ) ) {
-				continue;
+			if ( ! isset( $this->tokens[ $word ] ) ) {
+				if ( count( $this->tokens ) >= $this->count_cache_max ) {
+					$this->tokens = [];
+				}
+				$this->tokens[ $word ] = mb_strlen( $word ) < self::LENGTH_WORD_MIN || isset( $this->stopwords[ $word ] ) || preg_match( '/^\p{N}+$/u', $word ) ? '' : $this->stem( $word );
 			}
-			$tokens[] = $this->stem( $word );
+			if ( '' !== $this->tokens[ $word ] ) {
+				$tokens[] = $this->tokens[ $word ];
+			}
 		}
 
 		return $tokens;

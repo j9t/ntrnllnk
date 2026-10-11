@@ -4,6 +4,18 @@ All notable changes to ntrnllnk are documented in this file, which is (mostly) A
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-10-11
+
+### Fixed
+
+* Stopped garbling links with non-Latin characters, which could keep related posts from matching on shared links, and posts linked that way from counting as linked already
+
+### Changed
+
+* Made rebuilds about twice as fast, by scoring posts in a list rather than a map, reusing the tokens of recurring words, and counting stopwords natively
+* Sped up in-content links by finding posts the content already links to by permalink (however encoded) or ID (like `?p=123`), rather than by resolving every internal link, which could take a query each
+* Stopped autoloading the subjects for in-content links beyond the size WordPress autoloads by default (150 KB, adjustable via the `wp_max_autoloaded_option_size` filter), so that large sites don’t load them on every request
+
 ## [1.1.1] - 2026-10-11
 
 ### Fixed
