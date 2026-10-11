@@ -101,6 +101,9 @@ function ntrnllnk_build(): string {
 	if ( ! preg_match( '/^ \* Plugin Name: +' . NTRNLLNK_NAME . '$/m', $main ) ) {
 		throw new RuntimeException( 'Main plugin file or its header is missing' );
 	}
+	if ( ! is_file( $dir_plugin . '/readme.txt' ) ) {
+		throw new RuntimeException( 'readme.txt is missing' );
+	}
 	foreach ( NTRNLLNK_FILES_DEV as $file ) {
 		if ( file_exists( $dir_plugin . '/' . $file ) ) {
 			throw new RuntimeException( 'Development file in build: ' . $file );
