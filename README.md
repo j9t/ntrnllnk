@@ -45,7 +45,6 @@ What counts as a post’s subject comes from its title: names and other runs of 
 
 With “Single words” on, single capitalized words from titles count, too, like product or person names (“Mistral,” “Kluftinger”). To keep out common words, such a word needs at least three letters, must not start the title (or follow a colon), must not appear in lowercase in the post’s text, and must not appear in other titles, which makes it a topic of the site rather than of the post (like “AI”). This makes for more links, but also for more that miss, especially in German, where all nouns are capitalized; the report shows them, and “Excluded phrases” removes them.
 
-
 In-content links are added when a post is shown, not saved to it, so turning them off removes them all. To keep particular links out, use “Excluded phrases” or “Excluded posts”; for more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
 
 ### Settings
@@ -155,7 +154,7 @@ The classes in `src/` other than `Plugin.php`, `Admin.php`, and `Report.php` don
 
 ### Building
 
-`composer build` puts what belongs on a server into `dist/`: the plugin folder, `dist/ntrnllnk/`, to copy into `wp-content/plugins/`, and `dist/ntrnllnk.zip`, to upload via _Plugins_ → _Add New Plugin_ → _Upload Plugin_. It builds from the working copy, including uncommitted changes, and leaves out what `.gitignore` ignores and what `.gitattributes` marks `export-ignore`. It then checks the result: the main plugin file is there, no development files are, and all PHP files parse.
+`composer build` puts what belongs on a server into `dist/`: the plugin folder, `dist/ntrnllnk/`, to copy into `wp-content/plugins/`, and `dist/ntrnllnk.zip`, to upload via _Plugins_ → _Add New Plugin_ → _Upload Plugin_. It builds from the working copy, including uncommitted changes, and leaves out what `.gitignore` ignores and what `.gitattributes` marks `export-ignore`. It then checks the result: the main plugin file and readme.txt are there, no development files are, and all PHP files parse.
 
 `dist/` is generated, so don’t edit it; rebuild before every deployment.
 
@@ -171,5 +170,11 @@ composer bench -- --input=benchmark.json --compare
 ```
 
 `--compare` also ranks without skipping features in many posts and reports how many related posts match; `--frequency-max=1000` tries another limit than 500; `--count=0` measures a site without the list. Unlike a real rebuild, the benchmark neither strips shortcodes nor uses categories and tags.
+
+## License
+
+ntrnllnk is licensed under the [GNU General Public License, version 3 or later](LICENSE.txt). Versions up to 1.1.2 were released under the MIT License.
+
+Contributions are welcome. By submitting one, you agree to license it under the same terms and grant Jens Oliver Meiert the right to also license it under other terms.
 
 <!-- @@ Add work reference? -->

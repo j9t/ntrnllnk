@@ -4,6 +4,12 @@ All notable changes to ntrnllnk are documented in this file, which is (mostly) A
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-11
+
+### Changed
+
+* Changed the license from MIT to GPL 3.0 or later (versions up to 1.1.2 remain under MIT)
+
 ## [1.1.2] - 2026-10-11
 
 ### Fixed

@@ -1,18 +1,17 @@
 <?php
 /**
  * Plugin Name:       ntrnllnk
- * Plugin URI:        https://github.com/j9t/ntrnllnk
+ * Plugin URI:        https://meiert.com/#todo
  * Description:       Links related posts based on their content and links.
- * Version:           1.1.2
+ * Version:           1.2.0
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Jens Oliver Meiert
  * Author URI:        https://meiert.com/
- * License:           MIT
- * License URI:       https://opensource.org/licenses/MIT
+ * License:           GPL-3.0-or-later
+ * License URI:       https://www.gnu.org/licenses/gpl-3.0.html
  * Text Domain:       ntrnllnk
  * Domain Path:       /languages
- * Update URI:        https://github.com/j9t/ntrnllnk
  *
  * @package Ntrnllnk
  */

@@ -31,7 +31,7 @@
     "wordpress",
     "wordpress-plugin"
   ],
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "name": "j9t/ntrnllnk",
   "require": {
     "php": ">=8.1"
