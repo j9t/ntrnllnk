@@ -2,7 +2,7 @@
 
 [![Build status](https://github.com/j9t/ntrnllnk/workflows/Tests/badge.svg)](https://github.com/j9t/ntrnllnk/actions) [![GitHub Sponsors](https://badgen.net/static/Support/Open%20Source/cyan)](https://github.com/sponsors/j9t)
 
-ntrnllnk is a configurable WordPress plugin for internal linking. It finds related posts automatically—without any manual input—and links them in two ways: in the content and in a “Further reading” list after each post. It supports German and English.
+ntrnllnk is a configurable WordPress plugin for internal linking. It finds related posts automatically—without any manual input—and links them in two ways: in the content and in a “Further reading” list after each post. It’s optimized for German and English content.
 
 ## Usage
 
@@ -116,7 +116,7 @@ Scores tend to be small: Two posts on the same subject often score around 0.05�
 
 To see where to set it, turn on “Debugging”: Logged-in users (contributors and above) then see each listed post’s score, and the share of each signal—like `[score: 0.052 – words 0.031, links 0.021]`. The list then also includes posts that missed “Minimum score,” down to half of it, struck through (`<del>`), so that posts without a list for visitors may show one. Visitors and other users see neither. Some page caches store pages for logged-in users, too; then, turn “Debugging” off when done, or check that the cache leaves these users out. The debugging data comes in `.ntrnllnk-debug` to style it.
 
-Stopwords and stems depend on the language. With “Language” set to “Detect per post,” ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are.
+Stopwords and stems depend on the language. With “Language” set to “Detect per post,” ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are. Languages that don’t separate words with spaces, like Chinese or Japanese, rely mostly on shared links and terms, and since in-content links need capitalized names, scripts without case, like Arabic or Persian, get none.
 
 Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in rebuilds (see “When Changes Apply”). A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
 

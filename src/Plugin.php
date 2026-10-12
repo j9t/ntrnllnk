@@ -79,7 +79,6 @@ final class Plugin {
 		register_activation_hook( $file, [ self::class, 'activate' ] );
 		register_deactivation_hook( $file, [ self::class, 'deactivate' ] );
 
-		add_action( 'init', [ self::class, 'load_textdomain' ] );
 		add_action( 'init', [ self::class, 'register_output' ] );
 		add_action( self::HOOK_REBUILD, [ self::class, 'rebuild' ] );
 		add_action( self::HOOK_REBUILD_DAILY, [ self::class, 'rebuild' ] );
@@ -145,13 +144,6 @@ final class Plugin {
 	public static function deactivate(): void {
 		wp_clear_scheduled_hook( self::HOOK_REBUILD );
 		wp_clear_scheduled_hook( self::HOOK_REBUILD_DAILY );
-	}
-
-	/**
-	 * Loads translations
-	 */
-	public static function load_textdomain(): void {
-		load_plugin_textdomain( 'ntrnllnk', false, dirname( plugin_basename( self::$file ) ) . '/languages' ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Loads the bundled translation
 	}
 
 	/**

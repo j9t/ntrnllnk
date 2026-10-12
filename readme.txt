@@ -5,7 +5,7 @@ Tags: internal links, related posts, linking, links, seo
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -18,7 +18,7 @@ ntrnllnk links your posts automatically—without any manual input:
 * **Related posts:** After each post, it lists the most closely related ones under “Further reading.”
 * **In-content links:** In the text, it links the first mention of another post’s subject, like “Agatha Christie” to the post “Agatha Christie in the Right Order,” at most three times per post.
 
-To relate posts, ntrnllnk compares their words (from titles, headings, text, categories, and tags) and the links they share. It works out related posts in the background and keeps them up to date, so visitors don’t wait for it. It supports German and English content; other languages work, too, only less precisely.
+To relate posts, ntrnllnk compares their words (from titles, headings, text, categories, and tags) and the links they share. It works out related posts in the background and keeps them up to date, so visitors don’t wait for it. It’s optimized for German and English content; other languages work, too, with limits.
 
 The list ships without styles, so that it looks like the rest of the content. It can also be placed manually, via the `[ntrnllnk]` shortcode or `ntrnllnk_render()`, and filters allow changing its markup and the in-content links.
 
@@ -45,6 +45,10 @@ Display settings apply right away. Settings that decide which posts are related 
 = Does the Plugin Work on Large Sites? =
 
 Up to a few thousand posts, rebuilds fit into the 256 MB that WordPress allows by default. Beyond about 4,000 posts, they may need more: Raise `WP_MAX_MEMORY_LIMIT`, or the limit for ntrnllnk alone, via the `ntrnllnk_memory_limit` filter. Visitors don’t notice the size of a site.
+
+= Does the Plugin Work With Other Languages? =
+
+Yes, only less precisely: Without stopwords and stems, words are compared as they are. Languages that don’t separate words with spaces, like Chinese or Japanese, rely mostly on shared links and terms, and since in-content links need capitalized names, scripts without case, like Arabic or Persian, get none.
 
 = How Do I Keep a Particular Link Out? =
 
