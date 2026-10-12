@@ -151,7 +151,7 @@ final class Plugin {
 	 * Loads translations
 	 */
 	public static function load_textdomain(): void {
-		load_plugin_textdomain( 'ntrnllnk', false, dirname( plugin_basename( self::$file ) ) . '/languages' );
+		load_plugin_textdomain( 'ntrnllnk', false, dirname( plugin_basename( self::$file ) ) . '/languages' ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Loads the bundled translation
 	}
 
 	/**
@@ -327,12 +327,11 @@ final class Plugin {
 		// WordPress queries posts for an empty post type
 		$ids = ! $settings['post_types'] ? [] : get_posts(
 			[
-				'post_type'        => $settings['post_types'],
-				'post_status'      => 'publish',
-				'has_password'     => false,
-				'fields'           => 'ids',
-				'posts_per_page'   => -1,
-				'suppress_filters' => true,
+				'post_type'      => $settings['post_types'],
+				'post_status'    => 'publish',
+				'has_password'   => false,
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
 			]
 		);
 
@@ -351,11 +350,10 @@ final class Plugin {
 			// Uncached, so that posts and their content do not pile up in the object cache
 			$posts = get_posts(
 				[
-					'post__in'         => $ids_batch,
-					'post_type'        => $settings['post_types'],
-					'posts_per_page'   => -1,
-					'cache_results'    => false,
-					'suppress_filters' => true,
+					'post__in'       => $ids_batch,
+					'post_type'      => $settings['post_types'],
+					'posts_per_page' => -1,
+					'cache_results'  => false,
 				]
 			);
 			if ( $rank ) {
@@ -396,12 +394,11 @@ final class Plugin {
 
 		$ids_stale = get_posts(
 			[
-				'post_type'        => 'any',
-				'post_status'      => 'any',
-				'meta_key'         => self::META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Runs in the background
-				'fields'           => 'ids',
-				'posts_per_page'   => -1,
-				'suppress_filters' => true,
+				'post_type'      => 'any',
+				'post_status'    => 'any',
+				'meta_key'       => self::META_KEY, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Runs in the background
+				'fields'         => 'ids',
+				'posts_per_page' => -1,
 			]
 		);
 		foreach ( $ids_stale as $id ) {
