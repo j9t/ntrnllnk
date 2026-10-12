@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       ntrnllnk
- * Plugin URI:        https://meiert.com/#todo
+ * Plugin URI:        https://github.com/j9t/ntrnllnk
  * Description:       Links related posts based on their content and links.
  * Version:           1.2.0
  * Requires at least: 6.5
