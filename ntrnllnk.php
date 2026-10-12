@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       ntrnllnk
  * Plugin URI:        https://github.com/j9t/ntrnllnk
- * Description:       Links related posts based on their content and links.
+ * Description:       Automatic internal linking, in the content and via lists of related posts.
  * Version:           1.2.0
  * Requires at least: 6.5
  * Requires PHP:      8.1

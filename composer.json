@@ -23,14 +23,6 @@
     }
   ],
   "homepage": "https://github.com/j9t/ntrnllnk",
-  "keywords": [
-    "internal-links",
-    "links",
-    "related-posts",
-    "seo",
-    "wordpress",
-    "wordpress-plugin"
-  ],
   "license": "GPL-3.0-or-later",
   "name": "j9t/ntrnllnk",
   "require": {

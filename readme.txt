@@ -1,7 +1,7 @@
 === ntrnllnk ===
 Contributors: j9t
 Donate link: https://github.com/sponsors/j9t
-Tags: internal links, related posts, linking, seo
+Tags: internal links, related posts, linking, links, seo
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1

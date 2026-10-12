@@ -2,7 +2,7 @@
 
 [![Build status](https://github.com/j9t/ntrnllnk/workflows/Tests/badge.svg)](https://github.com/j9t/ntrnllnk/actions) [![GitHub Sponsors](https://badgen.net/static/Support/Open%20Source/cyan)](https://github.com/sponsors/j9t)
 
-ntrnllnk is a WordPress plugin for automatic internal linking. It finds related posts automatically—without any manual input—and lists them after each post under “Further reading.” It also links mentions of other posts’ subjects within the text. It supports German and English content.
+ntrnllnk is a configurable WordPress plugin for internal linking. It finds related posts automatically—without any manual input—and links them in two ways: in the content and in a “Further reading” list after each post. It supports German and English.
 
 ## Usage
 
