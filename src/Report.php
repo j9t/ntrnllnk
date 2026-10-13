@@ -81,7 +81,7 @@ final class Report {
 		printf(
 			'<div class="wrap">%s<p>%s</p><p>%s</p>',
 			self::header_html(), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped while built
-			esc_html__( 'For each post: its related posts, the links ntrnllnk adds to its text, and how many lists include it. In-content links are worked out for the posts on this page as you open it, so it may take a moment.', 'ntrnllnk' ),
+			esc_html__( 'For each post: its related posts, the links ntrnllnk adds to its text, and how many lists include it. In-content links are worked out for the posts on this page as you open it, so loading may take a moment.', 'ntrnllnk' ),
 			esc_html( Admin::status() )
 		);
 		if ( ! $settings['post_types'] ) {

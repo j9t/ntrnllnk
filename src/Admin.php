@@ -131,7 +131,7 @@ final class Admin {
 			esc_url( admin_url( 'tools.php?page=' . Report::SLUG ) ),
 			esc_html__( 'Open Report', 'ntrnllnk' ),
 			esc_html__( 'Rebuild', 'ntrnllnk' ),
-			esc_html__( 'ntrnllnk works out related posts and the subjects for in-content links in the background, in a rebuild. Changing posts, or saving settings that affect related posts, starts one by itself; this button starts one right away.', 'ntrnllnk' ),
+			esc_html__( 'ntrnllnk works out related posts and the subjects for in-content links in the background, in a rebuild. Changing posts, or saving settings that affect related posts, starts one by itself; the “rebuild” button starts one right away.', 'ntrnllnk' ),
 			esc_html( self::status() ),
 			esc_url( admin_url( 'admin-post.php' ) ),
 			esc_attr( self::ACTION_REBUILD )
@@ -485,7 +485,7 @@ final class Admin {
 				'section'     => 'inline',
 				'label'       => __( 'Excluded phrases', 'ntrnllnk' ),
 				'type'        => 'textarea',
-				'description' => __( 'Phrases never to link, one per line.', 'ntrnllnk' ),
+				'description' => __( 'Phrases not to link, one per line.', 'ntrnllnk' ),
 			],
 			'links_inline_exclude_posts'   => [
 				'section'     => 'inline',
