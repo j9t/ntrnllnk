@@ -24,13 +24,7 @@ The list ships without styles, so that it looks like the rest of the content. It
 
 A report under _Tools_ → _ntrnllnk_ shows each post’s related posts, with scores, and its in-content links, as well as posts without a list and posts no list includes.
 
-The full documentation, including all settings and how scores work, is [on GitHub](https://github.com/j9t/ntrnllnk).
-
-== Installation ==
-
-1. Install the plugin via _Plugins_ → _Add New Plugin_, or upload it to wp-content/plugins/.
-2. Activate it. A minute later, it computes related posts for all published posts.
-3. Optionally, adjust the settings under _Settings_ → _ntrnllnk_.
+The full documentation, including all settings and how scores work, is available [on GitHub](https://github.com/j9t/ntrnllnk).
 
 == Frequently Asked Questions ==
 
@@ -57,6 +51,11 @@ Use “Excluded phrases” or “Excluded posts.” In-content links are added w
 = What Happens When I Delete the Plugin? =
 
 Deleting it removes its data and settings; deactivating it only stops rebuilds and keeps the data.
+
+== Screenshots ==
+
+1. Settings view
+2. Report view
 
 == Changelog ==
 
