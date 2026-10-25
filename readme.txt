@@ -16,7 +16,7 @@ Finds related posts by their content and links, lists them after each post, and 
 ntrnllnk links your posts automatically—without any manual input:
 
 * **Related posts:** After each post, it lists the most closely related ones under “Further reading.”
-* **In-content links:** In the text, it links the first mention of another post’s subject, like “Agatha Christie” to the post “The Best Order to Read Agatha Christie,” at most three times per post.
+* **In-content links:** In the text, it links the first mention of another post’s subject—like “Agatha Christie” to the post “The Best Books by Agatha Christie.”
 
 To relate posts, ntrnllnk compares their words (from titles, headings, text, categories, and tags) and the links they share. It works out related posts in the background and keeps them up to date, so visitors don’t wait for it. It’s optimized for English and German content; other languages work, too, with limits.
 

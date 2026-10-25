@@ -39,9 +39,9 @@ The shortcode also works with automatic placement: ntrnllnk then doesn’t appen
 
 ### In-Content Links
 
-Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “The Best Order to Read Agatha Christie.” It adds at most three such links per post (“Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
+Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “The Best Books by Agatha Christie.” It adds at most three such links per post (“Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
 
-The text doesn’t links to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
+The text doesn’t link to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
 
 What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Jennifer L. Armentrout,” “Herr der Ringe”; single words are too often common nouns, especially in German, so they count only with “Single words” on), that the post’s own text mentions at least three times. A title’s first word, or the first one after a colon, counts as part of a name only if the text doesn’t use it in lowercase, so that “Is Web3 dead?” doesn’t make “Is Web3” a subject. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christie’s”).
 
