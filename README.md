@@ -39,7 +39,7 @@ The shortcode also works with automatic placement: ntrnllnk then doesn’t appen
 
 ### In-Content Links
 
-Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “The Best Books by Agatha Christie.” It adds at most three such links per post (“Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
+Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “The Best Books by Agatha Christie.” It adds at most three such links per post by default (“Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
 
 The text doesn’t link to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
 
