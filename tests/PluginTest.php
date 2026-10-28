@@ -307,7 +307,7 @@ final class PluginTest extends TestCase {
 
 	public function test_plugin_header_has_latest_changelog_version(): void {
 		// phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reads local files
-		preg_match( '/^## \[(\d+\.\d+\.\d+)\]/m', (string) file_get_contents( dirname( __DIR__ ) . '/CHANGELOG.md' ), $matches );
+		preg_match( '/^## \[(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\]/m', (string) file_get_contents( dirname( __DIR__ ) . '/CHANGELOG.md' ), $matches );
 		$this->assertMatchesRegularExpression( '/^ \* Version: +' . preg_quote( $matches[1] ?? '', '/' ) . '$/m', (string) file_get_contents( dirname( __DIR__ ) . '/ntrnllnk.php' ) );
 		// phpcs:enable
 	}

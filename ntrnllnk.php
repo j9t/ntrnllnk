@@ -3,7 +3,7 @@
  * Plugin Name:       ntrnllnk
  * Plugin URI:        https://github.com/j9t/ntrnllnk
  * Description:       Automatic internal linking, in the content and via lists of related posts.
- * Version:           1.3.0
+ * Version:           1.3.0-rc.1
  * Requires at least: 6.5
  * Requires PHP:      8.1
  * Author:            Jens Oliver Meiert
