@@ -108,9 +108,9 @@ final class AdminTest extends TestCase {
 	}
 
 	public function test_sanitize_reports_dropped_custom_links(): void {
-		Functions\expect( 'add_settings_error' )->once()->with( Plugin::OPTION_SETTINGS, 'ntrnllnk_links_inline_custom', Mockery::on( fn( string $message ): bool => str_contains( $message, '“Agatha Christie,” “[Script](javascript:alert(1))”' ) ), 'warning' );
+		Functions\expect( 'add_settings_error' )->once()->with( Plugin::OPTION_SETTINGS, 'ntrnllnk_links_inline_custom', Mockery::on( fn( string $message ): bool => str_contains( $message, '<code>[Phrase](https://example.com/)</code>' ) && str_contains( $message, '<code>Agatha &lt;b&gt;Christie&lt;/b&gt;</code>, <code>[Script](javascript:alert(1))</code>' ) ), 'warning' );
 
-		$this->assertSame( [ '[Harry Potter](?p=12)' ], Admin::sanitize( [ 'links_inline_custom' => "Agatha Christie\n[Harry Potter](?p=12)\n[Script](javascript:alert(1))" ] )['links_inline_custom'] );
+		$this->assertSame( [ '[Harry Potter](?p=12)' ], Admin::sanitize( [ 'links_inline_custom' => "Agatha <b>Christie</b>\n[Harry Potter](?p=12)\n[Script](javascript:alert(1))" ] )['links_inline_custom'] );
 	}
 
 	public function test_sanitize_reports_nothing_for_valid_custom_links(): void {
@@ -150,6 +150,13 @@ final class AdminTest extends TestCase {
 		$this->assertStringContainsString( 'aria-describedby="ntrnllnk-count-description"', $field );
 		$this->assertStringContainsString( '<p class="description" id="ntrnllnk-count-description">', $field );
 		$this->assertStringNotContainsString( 'aria-describedby', $this->captured( fn() => Admin::render_field( [ 'key' => 'heading' ] ) ) );
+	}
+
+	public function test_render_field_shows_backticked_description_text_as_code(): void {
+		$field = $this->captured( fn() => Admin::render_field( [ 'key' => 'links_inline_custom' ] ) );
+
+		$this->assertStringContainsString( '<code>[Agatha Christie](?p=123)</code>', $field );
+		$this->assertStringNotContainsString( '`', $field );
 	}
 
 	/**
