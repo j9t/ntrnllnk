@@ -267,8 +267,8 @@ final class PluginTest extends TestCase {
 		Plugin::on_initialize_site(
 			new \WP_Site(
 				(object) [
-					'blog_id'    => '3',
-					'network_id' => '2',
+					'blog_id' => '3',
+					'site_id' => '2',
 				]
 			)
 		);
