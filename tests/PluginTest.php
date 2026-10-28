@@ -215,7 +215,15 @@ final class PluginTest extends TestCase {
 	public function test_activate_schedules_rebuilds_on_each_site_of_network_when_network_wide(): void {
 		Functions\when( 'is_multisite' )->justReturn( true );
 		Functions\when( 'wp_next_scheduled' )->justReturn( false );
-		Functions\expect( 'get_sites' )->once()->with( Mockery::subset( [ 'number' => 0 ] ) )->andReturn( [ 1, 2 ] );
+		Functions\when( 'get_current_network_id' )->justReturn( 5 );
+		Functions\expect( 'get_sites' )->once()->with(
+			Mockery::subset(
+				[
+					'network_id' => 5,
+					'number'     => 0,
+				]
+			)
+		)->andReturn( [ 1, 2 ] );
 		Functions\expect( 'switch_to_blog' )->once()->with( 1 )->ordered();
 		Functions\expect( 'switch_to_blog' )->once()->with( 2 )->ordered();
 		Functions\expect( 'restore_current_blog' )->twice();
@@ -237,6 +245,7 @@ final class PluginTest extends TestCase {
 
 	public function test_deactivate_unschedules_rebuilds_on_each_site_of_network_when_network_wide(): void {
 		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'get_current_network_id' )->justReturn( 1 );
 		Functions\when( 'get_sites' )->justReturn( [ 1, 2 ] );
 		Functions\expect( 'switch_to_blog' )->twice();
 		Functions\expect( 'restore_current_blog' )->twice();
@@ -247,23 +256,45 @@ final class PluginTest extends TestCase {
 
 	public function test_on_initialize_site_schedules_rebuilds_when_network_active(): void {
 		Functions\when( 'plugin_basename' )->justReturn( 'ntrnllnk/ntrnllnk.php' );
-		Functions\when( 'get_site_option' )->justReturn( [ 'ntrnllnk/ntrnllnk.php' => 1 ] );
+		// Of the site’s network, not the current one
+		Functions\expect( 'get_network_option' )->once()->with( 2, 'active_sitewide_plugins', [] )->andReturn( [ 'ntrnllnk/ntrnllnk.php' => 1 ] );
 		Functions\when( 'wp_next_scheduled' )->justReturn( false );
 		Functions\expect( 'switch_to_blog' )->once()->with( 3 );
 		Functions\expect( 'restore_current_blog' )->once();
 		Functions\expect( 'wp_schedule_single_event' )->once();
 		Functions\expect( 'wp_schedule_event' )->once();
 
-		Plugin::on_initialize_site( new \WP_Site( (object) [ 'blog_id' => '3' ] ) );
+		Plugin::on_initialize_site(
+			new \WP_Site(
+				(object) [
+					'blog_id'    => '3',
+					'network_id' => '2',
+				]
+			)
+		);
 	}
 
 	public function test_on_initialize_site_does_nothing_unless_network_active(): void {
 		Functions\when( 'plugin_basename' )->justReturn( 'ntrnllnk/ntrnllnk.php' );
-		Functions\when( 'get_site_option' )->justReturn( [ 'akismet/akismet.php' => 1 ] );
+		Functions\when( 'get_network_option' )->justReturn( [ 'akismet/akismet.php' => 1 ] );
 		Functions\expect( 'switch_to_blog' )->never();
 		Functions\expect( 'wp_schedule_single_event' )->never();
 
 		Plugin::on_initialize_site( new \WP_Site( (object) [ 'blog_id' => '3' ] ) );
+	}
+
+	public function test_schedule_rebuild_daily_schedules_missing_daily_rebuild(): void {
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'wp_schedule_event' )->once()->with( Mockery::type( 'int' ), 'daily', Plugin::HOOK_REBUILD_DAILY );
+
+		Plugin::schedule_rebuild_daily();
+	}
+
+	public function test_schedule_rebuild_daily_keeps_scheduled_daily_rebuild(): void {
+		Functions\when( 'wp_next_scheduled' )->justReturn( time() + 3600 );
+		Functions\expect( 'wp_schedule_event' )->never();
+
+		Plugin::schedule_rebuild_daily();
 	}
 
 	public function test_register_output_appends_list_and_links_content_by_default(): void {

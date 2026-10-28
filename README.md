@@ -52,7 +52,7 @@ What counts as a post’s subject comes from its title: names and other runs of 
 
 With “Single words” on, single capitalized words from titles count, too, like product or person names (“Mistral,” “Kluftinger”). To keep out common words, such a word needs at least three letters, must not start the title (or follow a colon), must not appear in lowercase in the post’s text, and must not appear in other titles, which makes it a topic of the site rather than of the post (like “AI”). This makes for more links, but also for more that miss, especially in German where all nouns are capitalized. The report shows them, and “Excluded phrases” removes them.
 
-In-content links are added when a post is shown, so turning them off removes them all, including custom ones. To keep particular links out, use “Excluded phrases” or “Excluded posts.” For more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
+In-content links are added when a post is shown, so turning them off removes them all, including custom ones. To keep particular links out, use “Excluded phrases” (for automatic links; remove custom ones from “Custom links”) or “Excluded posts.” For more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
 
 #### Custom Links
 
@@ -88,7 +88,7 @@ The settings page, under Settings → ntrnllnk, needs the `manage_options` capab
 | Maximum per post | 3 | Maximum number of automatic in-content links per post |
 | Single words | Off | Whether single words from titles count as subjects, too, like product or person names, for more links, though some may miss |
 | Custom links | None | Links to add to the first mention of a phrase, one per line, in Markdown, e.g., “[Agatha Christie](?p=123)” (see [“Custom Links”](#custom-links)); they don’t count toward “Maximum per post” |
-| Excluded phrases | None | Phrases not to link, one per line, e.g., “Happy End” and “Miss Marple” |
+| Excluded phrases | None | Phrases not to link automatically, one per line, e.g., “Happy End” and “Miss Marple” |
 | Excluded posts | None | IDs of posts whose content gets no in-content links, separated by commas |
 | **In-Content Links → Advanced** | | |
 | Class | Off | Whether in-content links get the class `ntrnllnk-inline` (links in the list can be selected with `.ntrnllnk a`) |

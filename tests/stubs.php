@@ -56,6 +56,8 @@ final class WP_Site {
 
 	public string $blog_id = '0';
 
+	public string $network_id = '0';
+
 	/**
 	 * Creates a site from database fields, like WP_Site
 	 *

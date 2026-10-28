@@ -90,6 +90,7 @@ final class Plugin {
 		add_action( 'update_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_saved' ], 10, 2 );
 		add_action( 'add_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_added' ], 10, 2 );
 		add_action( 'admin_init', [ self::class, 'rebuild_after_update' ] );
+		add_action( 'admin_init', [ self::class, 'schedule_rebuild_daily' ] );
 		add_action( 'wp_initialize_site', [ self::class, 'on_initialize_site' ] );
 
 		Admin::register( $file );
@@ -159,8 +160,8 @@ final class Plugin {
 	 * @param \WP_Site $site Site.
 	 */
 	public static function on_initialize_site( \WP_Site $site ): void {
-		// Read directly, as `is_plugin_active_for_network()` is not loaded outside the admin, like in WP-CLI
-		if ( ! isset( ( (array) get_site_option( 'active_sitewide_plugins', [] ) )[ plugin_basename( self::$file ) ] ) ) {
+		// Read directly, as `is_plugin_active_for_network()` is not loaded outside the admin, like in WP-CLI, and only checks the current network
+		if ( ! isset( ( (array) get_network_option( (int) $site->network_id, 'active_sitewide_plugins', [] ) )[ plugin_basename( self::$file ) ] ) ) {
 			return;
 		}
 		switch_to_blog( (int) $site->blog_id );
@@ -169,9 +170,9 @@ final class Plugin {
 	}
 
 	/**
-	 * Runs a callback on the current site, or, network-wide on multisite, on each site of the network
+	 * Runs a callback on the current site, or, network-wide on multisite, on each site of the current network
 	 *
-	 * Activation and deactivation hooks run only once, on the current site, even network-wide; uninstall.php does the same for removing data.
+	 * Activation and deactivation hooks run only once, on the current site, even network-wide; uninstall.php does the same for removing data, though on all networks.
 	 *
 	 * @param bool     $network_wide Whether to run on each site of the network.
 	 * @param callable $callback Callback.
@@ -183,8 +184,9 @@ final class Plugin {
 		}
 		foreach ( get_sites(
 			[
-				'fields' => 'ids',
-				'number' => 0,
+				'fields'     => 'ids',
+				'network_id' => get_current_network_id(),
+				'number'     => 0,
 			]
 		) as $id_site ) {
 			switch_to_blog( (int) $id_site );
@@ -198,6 +200,13 @@ final class Plugin {
 	 */
 	private static function schedule_rebuilds(): void {
 		self::schedule_rebuild();
+		self::schedule_rebuild_daily();
+	}
+
+	/**
+	 * Schedules the daily rebuild of the current site, unless it is scheduled
+	 */
+	public static function schedule_rebuild_daily(): void {
 		if ( ! wp_next_scheduled( self::HOOK_REBUILD_DAILY ) ) {
 			wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', self::HOOK_REBUILD_DAILY );
 		}

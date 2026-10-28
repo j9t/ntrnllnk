@@ -507,7 +507,7 @@ final class Admin {
 				'section'     => 'inline',
 				'label'       => __( 'Excluded phrases', 'ntrnllnk' ),
 				'type'        => 'textarea',
-				'description' => __( 'Phrases not to link, one per line.', 'ntrnllnk' ),
+				'description' => __( 'Phrases not to link automatically, one per line.', 'ntrnllnk' ),
 			],
 			'links_inline_exclude_posts'   => [
 				'section'     => 'inline',
