@@ -64,7 +64,7 @@ To link phrases ntrnllnk doesn’t find, or to other targets, add them under “
 [Web Components](/guides/web-components/)
 ```
 
-The target can be a post, as `?p=` and its ID (linked by its permalink, and only while published and of one of the “Post types”), a root-relative URL, or an absolute HTTP(S) URL; URLs are used as entered. Custom links follow the same rules as the others—first mention only, case-sensitive, at most one per paragraph, not to a target the text already links to, nor to the post itself—with three differences: They don’t count toward “Maximum per post,” so they also work with it set to 0; they take precedence over automatic links, also for the same phrase; and “Excluded phrases” doesn’t apply to them. When saving, ntrnllnk leaves out lines that aren’t such links, or repeat a phrase, and lists them in a warning.
+The target can be a post, as `?p=` and its ID (linked by its permalink, and only while published and of one of the “Post types”), a root-relative URL, or an absolute HTTP(S) URL; URLs are used as entered. Custom links follow the same rules as the others—first mention only, case-sensitive (for other spellings, add a line each), at most one per paragraph, not to a target the text already links to, nor to the post itself—with three differences: They don’t count toward “Maximum per post,” so they also work with it set to 0; they take precedence over automatic links, also for the same phrase; and “Excluded phrases” doesn’t apply to them. When saving, ntrnllnk leaves out lines that aren’t such links, or repeat a phrase, and lists them in a warning.
 
 ### Settings
 
