@@ -214,6 +214,22 @@ final class LinkerTest extends TestCase {
 		);
 	}
 
+	public function test_link_prefers_custom_phrases_later_in_paragraph(): void {
+		$linked = [];
+
+		$this->assertSame(
+			'<p>Harry Potter and <em><a href="/a11y/">Accessibility</a></em></p><p><a href="/potter/">Harry Potter</a></p>',
+			Linker::link( '<p>Harry Potter and <em>Accessibility</em></p><p>Harry Potter</p>', self::URLS, 3, linked: $linked, urls_custom: [ 'Accessibility' => '/a11y/' ] )
+		);
+		$this->assertSame(
+			[
+				'Accessibility' => '/a11y/',
+				'Harry Potter'  => '/potter/',
+			],
+			$linked
+		);
+	}
+
 	public function test_link_links_each_target_once_across_custom_and_other_phrases(): void {
 		$this->assertSame(
 			'<p><a href="/christie/">Queen of Crime</a></p><p>Agatha Christie</p>',

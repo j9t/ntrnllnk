@@ -67,8 +67,19 @@ final class Linker {
 			return $html;
 		}
 
+		$link = function ( int $index, string $phrase, bool $custom ) use ( &$tokens, &$linked, &$urls, &$urls_custom, &$count, $class_link ): void {
+			$url               = $custom ? $urls_custom[ $phrase ] : $urls[ $phrase ];
+			$tokens[ $index ]  = self::link_text( $tokens[ $index ], $phrase, $url, $class_link );
+			$linked[ $phrase ] = $url;
+			$count            -= $custom ? 0 : 1;
+			$urls              = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
+			$urls_custom       = array_filter( $urls_custom, fn( string $url_other ): bool => $url_other !== $url );
+		};
+
 		$depth_skip   = 0;
 		$block_linked = false;
+		// First automatic match of the current block, linked at its end unless a custom match follows
+		$pending = null;
 		foreach ( $tokens as $index => $token ) {
 			if ( str_starts_with( $token, '<' ) ) {
 				if ( ! preg_match( '/^<(\/?)([a-z][a-z0-9]*)/i', $token, $match ) ) {
@@ -80,27 +91,30 @@ final class Linker {
 					$depth_skip = '/' === $match[1] ? max( 0, $depth_skip - 1 ) : $depth_skip + ( $closed ? 0 : 1 );
 				}
 				if ( in_array( $element, self::ELEMENTS_BLOCK, true ) ) {
+					if ( null !== $pending ) {
+						$link( ...$pending );
+						$pending = null;
+					}
 					$block_linked = false;
+					if ( ( ! $urls || $count < 1 ) && ! $urls_custom ) {
+						break;
+					}
 				}
 			} elseif ( 0 === $depth_skip && ! $block_linked && '' !== trim( $token ) ) {
-				$phrase   = self::match( $token, $urls_custom );
-				$custom   = null !== $phrase;
-				$phrase ??= $count > 0 ? self::match( $token, $urls ) : null;
-				if ( null === $phrase ) {
-					continue;
-				}
-				$url               = $custom ? $urls_custom[ $phrase ] : $urls[ $phrase ];
-				$tokens[ $index ]  = self::link_text( $token, $phrase, $url, $class_link );
-				$linked[ $phrase ] = $url;
-				$block_linked      = true;
-				$count            -= $custom ? 0 : 1;
-				$urls              = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
-				$urls_custom       = array_filter( $urls_custom, fn( string $url_other ): bool => $url_other !== $url );
-				if ( ( ! $urls || $count < 1 ) && ! $urls_custom ) {
-					break;
+				$phrase = self::match( $token, $urls_custom );
+				if ( null !== $phrase ) {
+					$pending = null;
+					$link( $index, $phrase, true );
+					$block_linked = true;
+				} elseif ( null === $pending && $count > 0 ) {
+					$phrase  = self::match( $token, $urls );
+					$pending = null === $phrase ? null : [ $index, $phrase, false ];
 				}
 			}//end if
 		}//end foreach
+		if ( null !== $pending ) {
+			$link( ...$pending );
+		}
 
 		return implode( '', $tokens );
 	}
