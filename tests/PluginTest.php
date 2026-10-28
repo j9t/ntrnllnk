@@ -28,7 +28,7 @@ final class PluginTest extends TestCase {
 		Functions\stubEscapeFunctions();
 		// Unlike Brain Monkey’s stub, WordPress keeps relative URLs relative
 		Functions\when( 'esc_url' )->alias( fn( string $url ): string => htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' ) );
-		Functions\when( 'get_permalink' )->alias( fn( \WP_Post $post ): string => 'https://example.com/' . $post->ID . '/' );
+		Functions\when( 'get_permalink' )->alias( fn( \WP_Post|int $post ): string => 'https://example.com/' . ( is_int( $post ) ? $post : $post->ID ) . '/' );
 		Functions\when( 'get_the_title' )->alias( fn( \WP_Post $post ): string => $post->post_title );
 		Functions\when( 'home_url' )->justReturn( 'https://example.com' );
 		Functions\when( 'get_file_data' )->justReturn( [ 'version' => '1.0.0' ] );
@@ -681,6 +681,117 @@ final class PluginTest extends TestCase {
 		$this->assertSame(
 			'<p>Agatha Christie</p><p><a href="https://example.com/13/">Kluftinger</a></p>',
 			Plugin::link_content( '<p>Agatha Christie</p><p>Kluftinger</p>' )
+		);
+	}
+
+	public function test_link_content_adds_custom_links_beyond_maximum_and_before_automatic_ones(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_max'    => 1,
+				'links_inline_custom' => [ '[Agatha Christie](?p=13)', '[Accessibility](https://example.org/a11y/)' ],
+			]
+		);
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+			'Stephen King'    => 14,
+		];
+		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'post__in' => [ 12, 14, 13 ] ] ) )->andReturn( [ $this->post( [ 'ID' => 12 ] ), $this->post( [ 'ID' => 13 ] ), $this->post( [ 'ID' => 14 ] ) ] );
+
+		$this->assertSame(
+			'<p><a href="https://example.com/12/">Harry Potter</a></p><p><a href="https://example.com/13/">Agatha Christie</a></p><p><a href="https://example.org/a11y/">Accessibility</a></p><p>Stephen King</p>',
+			Plugin::link_content( '<p>Harry Potter</p><p>Agatha Christie</p><p>Accessibility</p><p>Stephen King</p>' )
+		);
+	}
+
+	public function test_link_content_adds_custom_links_without_automatic_ones(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_max'    => 0,
+				'links_inline_custom' => [ '[Accessibility](/a11y/)' ],
+			]
+		);
+		$this->view( 7 );
+		Functions\expect( 'get_posts' )->never();
+
+		$this->assertSame( '<p><a href="/a11y/">Accessibility</a></p>', Plugin::link_content( '<p>Accessibility</p>' ) );
+	}
+
+	public function test_link_content_keeps_custom_links_despite_excluded_phrases(): void {
+		$this->settings(
+			[
+				'links_inline'                 => true,
+				'links_inline_custom'          => [ '[Accessibility](/a11y/)' ],
+				'links_inline_exclude_phrases' => [ 'Accessibility' ],
+			]
+		);
+		$this->view( 7 );
+
+		$this->assertSame( '<p><a href="/a11y/">Accessibility</a></p>', Plugin::link_content( '<p>Accessibility</p>' ) );
+	}
+
+	public function test_link_content_skips_custom_targets_already_linked_or_unpublished(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_custom' => [ '[Accessibility](/a11y/)', '[Usability](https://example.org/usability)', '[Agatha Christie](?p=13)' ],
+			]
+		);
+		$this->view( 7 );
+		Functions\when( 'get_posts' )->justReturn( [] );
+
+		$html = '<p><a href="https://www.example.com/a11y">Guide</a> on Accessibility</p><p><a href="https://example.org/usability/#start">Guide</a> on Usability</p><p>Agatha Christie</p>';
+
+		$this->assertSame( $html, Plugin::link_content( $html ) );
+	}
+
+	public function test_link_content_skips_custom_targets_of_current_post(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_custom' => [ '[Accessibility](/7/)', '[Agatha Christie](?p=7)' ],
+			]
+		);
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
+		Functions\expect( 'get_posts' )->never();
+
+		$this->assertSame( '<p>Accessibility</p><p>Agatha Christie</p>', Plugin::link_content( '<p>Accessibility</p><p>Agatha Christie</p>' ) );
+	}
+
+	public function test_link_content_makes_only_custom_links_to_posts_relative(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'urls'                => 'relative',
+				'links_inline_custom' => [ '[Agatha Christie](?p=13)', '[Accessibility](https://example.com/a11y/)' ],
+			]
+		);
+		$this->view( 7 );
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 13 ] ) ] );
+		Functions\when( 'wp_make_link_relative' )->alias( fn( string $url ): string => (string) preg_replace( '#^https?://[^/]+#', '', $url ) );
+
+		$this->assertSame(
+			'<p><a href="/13/">Agatha Christie</a></p><p><a href="https://example.com/a11y/">Accessibility</a></p>',
+			Plugin::link_content( '<p>Agatha Christie</p><p>Accessibility</p>' )
+		);
+	}
+
+	public function test_link_post_reports_custom_targets(): void {
+		$this->settings( [ 'links_inline_custom' => [ '[Agatha Christie](?p=13)', '[Accessibility](/a11y/)' ] ] );
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 13 ] ) ] );
+		$linked = [];
+
+		Plugin::link_post( 7, '<p>Agatha Christie</p><p>Accessibility</p>', $linked );
+		$this->assertSame(
+			[
+				'Agatha Christie' => 13,
+				'Accessibility'   => '/a11y/',
+			],
+			$linked
 		);
 	}
 

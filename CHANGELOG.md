@@ -4,6 +4,12 @@ All notable changes to ntrnllnk are documented in this file, which is (mostly) A
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-28
+
+### Added
+
+* Added “Custom links,” to link phrases to posts or URLs of one’s choosing, in Markdown, one per line; custom links take precedence over automatic in-content links and don’t count toward “Maximum per post”
+
 ## [1.2.1] - 2026-10-12
 
 ### Changed

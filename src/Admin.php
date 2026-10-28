@@ -94,6 +94,21 @@ final class Admin {
 			$input = Settings::DEFAULTS;
 		}
 
+		$links_invalid = Settings::links_invalid( $input['links_inline_custom'] ?? [] );
+		if ( $links_invalid ) {
+			add_settings_error(
+				Plugin::OPTION_SETTINGS,
+				'ntrnllnk_links_inline_custom',
+				sprintf(
+					/* translators: 1: Example link, 2: Left-out lines */
+					__( 'Some custom links were left out, as they aren’t Markdown links like %1$s, or repeat a phrase: %2$s.', 'ntrnllnk' ),
+					'“[Phrase](https://example.com/)”',
+					esc_html( '“' . implode( ',” “', $links_invalid ) . '”' )
+				),
+				'warning'
+			);
+		}
+
 		return Settings::sanitize( $input, array_keys( self::post_types() ) );
 	}
 
@@ -480,6 +495,12 @@ final class Admin {
 				'type'        => 'checkbox',
 				'text'        => __( 'Also link single words from titles, like product or person names', 'ntrnllnk' ),
 				'description' => __( 'More links, though some may miss: Check the report, and exclude phrases as needed.', 'ntrnllnk' ),
+			],
+			'links_inline_custom'          => [
+				'section'     => 'inline',
+				'label'       => __( 'Custom links', 'ntrnllnk' ),
+				'type'        => 'textarea',
+				'description' => __( 'Links to add to the first mention of a phrase, besides the maximum, one per line, in Markdown, like “[Accessibility](https://example.com/accessibility/)”; for a post, use “?p=” and its ID, like “[Agatha Christie](?p=123)”.', 'ntrnllnk' ),
 			],
 			'links_inline_exclude_phrases' => [
 				'section'     => 'inline',

@@ -14,7 +14,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Sanitizing turns form input into complete settings and leaves sanitized settings unchanged, as WordPress may sanitize twice when saving.
  *
- * @phpstan-type Values array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: string, placement: string, priority: int, links_inline: bool, links_inline_max: int, links_inline_single_words: bool, links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array{words: float, links: float}, score_min: float, debug: bool}
+ * @phpstan-type Values array{post_types: string[], count: int, heading: string, heading_level: int|'auto', urls: string, placement: string, priority: int, links_inline: bool, links_inline_max: int, links_inline_single_words: bool, links_inline_custom: string[], links_inline_exclude_phrases: string[], links_inline_exclude_posts: int[], links_class: bool, language: string, weights: array{words: float, links: float}, score_min: float, debug: bool}
  */
 final class Settings {
 
@@ -32,6 +32,7 @@ final class Settings {
 		'links_inline'                 => true,
 		'links_inline_max'             => 3,
 		'links_inline_single_words'    => false,
+		'links_inline_custom'          => [],
 		'links_inline_exclude_phrases' => [],
 		'links_inline_exclude_posts'   => [],
 		'links_class'                  => false,
@@ -50,6 +51,11 @@ final class Settings {
 	 * Maximum number of related posts and of in-content links per post
 	 */
 	public const COUNT_MAX = 20;
+
+	/**
+	 * Custom link in Markdown, the target being a post (`?p=123`), a root-relative URL, or an HTTP(S) URL
+	 */
+	private const LINK = '#^\[\s*+(.+?)\s*\]\(\s*+(\?p=[1-9]\d*+|/(?!/)\S*?|https?://[^\s/?\#]+\S*?)\s*\)$#iu';
 
 	/**
 	 * Choices per setting, the first being the default
@@ -82,6 +88,7 @@ final class Settings {
 			'links_inline'                 => ! empty( $input['links_inline'] ),
 			'links_inline_max'             => self::integer( $input['links_inline_max'] ?? null, self::DEFAULTS['links_inline_max'], 0, self::COUNT_MAX ),
 			'links_inline_single_words'    => ! empty( $input['links_inline_single_words'] ),
+			'links_inline_custom'          => array_keys( self::parse_links( $input['links_inline_custom'] ?? [] )['valid'] ),
 			'links_inline_exclude_phrases' => self::lines( $input['links_inline_exclude_phrases'] ?? [] ),
 			'links_inline_exclude_posts'   => self::ids( $input['links_inline_exclude_posts'] ?? [] ),
 			'links_class'                  => ! empty( $input['links_class'] ),
@@ -113,6 +120,51 @@ final class Settings {
 	 */
 	public static function rebuilding( array $settings ): array {
 		return array_intersect_key( $settings, array_flip( self::REBUILD ) );
+	}
+
+	/**
+	 * Returns the phrases of custom links, with the IDs of the posts or the URLs they link to
+	 *
+	 * @param string[] $lines Custom links, as sanitized.
+	 * @return array<string, int|string>
+	 */
+	public static function links( array $lines ): array {
+		return array_column( self::parse_links( $lines )['valid'], 1, 0 );
+	}
+
+	/**
+	 * Returns the lines of custom links that sanitizing drops, as they are not valid or repeat a phrase
+	 *
+	 * @param mixed $value Text with one link per line, or list.
+	 * @return string[]
+	 */
+	public static function links_invalid( mixed $value ): array {
+		return self::parse_links( $value )['invalid'];
+	}
+
+	/**
+	 * Returns the valid custom links of a text, or of a list, normalized, with their phrases and targets, and the other lines
+	 *
+	 * @param mixed $value Text with one link per line, or list.
+	 * @return array{valid: array<string, array{string, int|string}>, invalid: string[]}
+	 */
+	private static function parse_links( mixed $value ): array {
+		$valid   = [];
+		$invalid = [];
+		$phrases = [];
+		foreach ( self::lines( $value ) as $line ) {
+			if ( ! preg_match( self::LINK, $line, $match ) || isset( $phrases[ $match[1] ] ) ) {
+				$invalid[] = $line;
+				continue;
+			}
+			$phrases[ $match[1] ]                              = true;
+			$valid[ '[' . $match[1] . '](' . $match[2] . ')' ] = [ $match[1], str_starts_with( $match[2], '?' ) ? (int) substr( $match[2], 3 ) : $match[2] ];
+		}
+
+		return [
+			'valid'   => $valid,
+			'invalid' => $invalid,
+		];
 	}
 
 	/**

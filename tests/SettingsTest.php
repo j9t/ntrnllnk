@@ -92,6 +92,31 @@ final class SettingsTest extends TestCase {
 		$this->assertSame( [ 'Happy End', 'Miss Marple' ], $this->sanitize( [ 'links_inline_exclude_phrases' => "Happy End\r\n\r\n Miss Marple \nHappy End" ] )['links_inline_exclude_phrases'] );
 	}
 
+	public function test_sanitize_keeps_valid_custom_links_once_per_phrase(): void {
+		$this->assertSame(
+			[ '[Agatha Christie](?p=123)', '[Accessibility](https://example.com/a11y/)', '[Herr der Ringe](https://de.wikipedia.org/wiki/Der_Herr_der_Ringe_(Film))', '[Web Components](/guides/)' ],
+			$this->sanitize( [ 'links_inline_custom' => "[Agatha Christie](?p=123)\r\n\n [Accessibility]( https://example.com/a11y/ ) \n[Herr der Ringe](https://de.wikipedia.org/wiki/Der_Herr_der_Ringe_(Film))\nInvalid\n[Web Components](/guides/)\n[Agatha Christie](/christie/)" ] )['links_inline_custom']
+		);
+	}
+
+	public function test_links_invalid_returns_lines_sanitizing_drops(): void {
+		$this->assertSame(
+			[ 'Agatha Christie', '[Agatha Christie]', '[](/empty/)', '[Spaces](/a b/)', '[Script](javascript:alert(1))', '[Protocol-relative](//example.com/)', '[Mail](mailto:a@example.com)', '[Zero](?p=0)', '[Repeated](/b/)' ],
+			Settings::links_invalid( "[Repeated](/a/)\nAgatha Christie\n[Agatha Christie]\n[](/empty/)\n[Spaces](/a b/)\n[Script](javascript:alert(1))\n[Protocol-relative](//example.com/)\n[Mail](mailto:a@example.com)\n[Zero](?p=0)\n[Repeated](/a/)\n[Repeated](/b/)\n\n" )
+		);
+	}
+
+	public function test_links_returns_phrases_with_post_ids_or_urls(): void {
+		$this->assertSame(
+			[
+				'Agatha Christie' => 123,
+				'Accessibility'   => 'https://example.com/a11y/',
+				'Web Components'  => '/guides/',
+			],
+			Settings::links( [ '[Agatha Christie](?p=123)', '[Accessibility](https://example.com/a11y/)', '[Web Components](/guides/)', 'Invalid' ] )
+		);
+	}
+
 	public function test_sanitize_extracts_excluded_post_ids(): void {
 		$this->assertSame( [ 123, 456 ], $this->sanitize( [ 'links_inline_exclude_posts' => '123, 456 123 0 abc' ] )['links_inline_exclude_posts'] );
 	}
@@ -114,6 +139,7 @@ final class SettingsTest extends TestCase {
 				'count'                        => '3',
 				'heading'                      => 'Related',
 				'links_inline'                 => '1',
+				'links_inline_custom'          => "[Agatha Christie](?p=123)\n[Accessibility](/a11y/)",
 				'links_inline_exclude_phrases' => "Happy End\nMiss Marple",
 				'links_inline_exclude_posts'   => '123',
 				'weights'                      => [ 'words' => '0.5' ],

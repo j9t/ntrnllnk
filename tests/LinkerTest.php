@@ -184,6 +184,43 @@ final class LinkerTest extends TestCase {
 		);
 	}
 
+	public function test_link_links_custom_phrases_beyond_maximum(): void {
+		$linked = [];
+
+		$this->assertSame(
+			'<p><a href="/potter/">Harry Potter</a></p><p><a href="https://example.com/a11y/">Accessibility</a></p><p>Agatha Christie</p>',
+			Linker::link( '<p>Harry Potter</p><p>Accessibility</p><p>Agatha Christie</p>', self::URLS, 1, linked: $linked, urls_custom: [ 'Accessibility' => 'https://example.com/a11y/' ] )
+		);
+		$this->assertSame(
+			[
+				'Harry Potter'  => '/potter/',
+				'Accessibility' => 'https://example.com/a11y/',
+			],
+			$linked
+		);
+	}
+
+	public function test_link_links_custom_phrases_without_others(): void {
+		$this->assertSame(
+			'<p><a href="/a11y/">Accessibility</a></p>',
+			Linker::link( '<p>Accessibility</p>', [], 0, urls_custom: [ 'Accessibility' => '/a11y/' ] )
+		);
+	}
+
+	public function test_link_prefers_custom_phrases_within_paragraph(): void {
+		$this->assertSame(
+			'<p>Harry Potter and <a href="/a11y/">Accessibility</a></p>',
+			Linker::link( '<p>Harry Potter and Accessibility</p>', self::URLS, 3, urls_custom: [ 'Accessibility' => '/a11y/' ] )
+		);
+	}
+
+	public function test_link_links_each_target_once_across_custom_and_other_phrases(): void {
+		$this->assertSame(
+			'<p><a href="/christie/">Queen of Crime</a></p><p>Agatha Christie</p>',
+			Linker::link( '<p>Queen of Crime</p><p>Agatha Christie</p>', self::URLS, 3, urls_custom: [ 'Queen of Crime' => '/christie/' ] )
+		);
+	}
+
 	public function test_link_returns_html_unchanged_without_phrases(): void {
 		$this->assertSame( '<p>Harry Potter</p>', Linker::link( '<p>Harry Potter</p>', [], 3 ) );
 	}
