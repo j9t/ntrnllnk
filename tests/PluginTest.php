@@ -202,6 +202,70 @@ final class PluginTest extends TestCase {
 		Plugin::on_delete_term( 5, 9, 'category', null, [] );
 	}
 
+	public function test_activate_schedules_first_and_daily_rebuild(): void {
+		Functions\when( 'is_multisite' )->justReturn( false );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'switch_to_blog' )->never();
+		Functions\expect( 'wp_schedule_single_event' )->once()->with( Mockery::type( 'int' ), Plugin::HOOK_REBUILD );
+		Functions\expect( 'wp_schedule_event' )->once()->with( Mockery::type( 'int' ), 'daily', Plugin::HOOK_REBUILD_DAILY );
+
+		Plugin::activate( true );
+	}
+
+	public function test_activate_schedules_rebuilds_on_each_site_of_network_when_network_wide(): void {
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'get_sites' )->once()->with( Mockery::subset( [ 'number' => 0 ] ) )->andReturn( [ 1, 2 ] );
+		Functions\expect( 'switch_to_blog' )->once()->with( 1 )->ordered();
+		Functions\expect( 'switch_to_blog' )->once()->with( 2 )->ordered();
+		Functions\expect( 'restore_current_blog' )->twice();
+		Functions\expect( 'wp_schedule_single_event' )->twice();
+		Functions\expect( 'wp_schedule_event' )->twice();
+
+		Plugin::activate( true );
+	}
+
+	public function test_activate_schedules_rebuilds_on_current_site_only_when_not_network_wide(): void {
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'get_sites' )->never();
+		Functions\expect( 'wp_schedule_single_event' )->once();
+		Functions\expect( 'wp_schedule_event' )->once();
+
+		Plugin::activate( false );
+	}
+
+	public function test_deactivate_unschedules_rebuilds_on_each_site_of_network_when_network_wide(): void {
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'get_sites' )->justReturn( [ 1, 2 ] );
+		Functions\expect( 'switch_to_blog' )->twice();
+		Functions\expect( 'restore_current_blog' )->twice();
+		Functions\expect( 'wp_clear_scheduled_hook' )->times( 4 );
+
+		Plugin::deactivate( true );
+	}
+
+	public function test_on_initialize_site_schedules_rebuilds_when_network_active(): void {
+		Functions\when( 'plugin_basename' )->justReturn( 'ntrnllnk/ntrnllnk.php' );
+		Functions\when( 'get_site_option' )->justReturn( [ 'ntrnllnk/ntrnllnk.php' => 1 ] );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'switch_to_blog' )->once()->with( 3 );
+		Functions\expect( 'restore_current_blog' )->once();
+		Functions\expect( 'wp_schedule_single_event' )->once();
+		Functions\expect( 'wp_schedule_event' )->once();
+
+		Plugin::on_initialize_site( new \WP_Site( (object) [ 'blog_id' => '3' ] ) );
+	}
+
+	public function test_on_initialize_site_does_nothing_unless_network_active(): void {
+		Functions\when( 'plugin_basename' )->justReturn( 'ntrnllnk/ntrnllnk.php' );
+		Functions\when( 'get_site_option' )->justReturn( [ 'akismet/akismet.php' => 1 ] );
+		Functions\expect( 'switch_to_blog' )->never();
+		Functions\expect( 'wp_schedule_single_event' )->never();
+
+		Plugin::on_initialize_site( new \WP_Site( (object) [ 'blog_id' => '3' ] ) );
+	}
+
 	public function test_register_output_appends_list_and_links_content_by_default(): void {
 		Functions\expect( 'add_shortcode' )->once()->with( 'ntrnllnk', [ Plugin::class, 'shortcode' ] );
 		Plugin::register_output();

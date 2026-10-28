@@ -140,7 +140,7 @@ Stopwords and stems depend on the language. With “Language” set to “Detect
 
 Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in rebuilds (see [“When Changes Apply”](#when-changes-apply)). A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
 
-Uninstalling (deleting) the plugin removes its post meta, options (including its settings), and scheduled events; deactivating it only stops rebuilds, and keeps the data.
+Uninstalling (deleting) the plugin removes its post meta, options (including its settings), and scheduled events; deactivating it only stops rebuilds, and keeps the data. On multisite, each site has its own settings and data; network-wide, activating, deactivating, and uninstalling apply to every site of the network, and sites added later get their rebuilds scheduled, too.
 
 ### Performance
 

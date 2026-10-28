@@ -48,3 +48,22 @@ final class WP_Taxonomy {
 
 	public bool $public = true;
 }
+
+/**
+ * Stand-in for WP_Site
+ */
+final class WP_Site {
+
+	public string $blog_id = '0';
+
+	/**
+	 * Creates a site from database fields, like WP_Site
+	 *
+	 * @param object $site Fields.
+	 */
+	public function __construct( object $site ) {
+		foreach ( get_object_vars( $site ) as $name => $value ) {
+			$this->$name = $value;
+		}
+	}
+}

@@ -90,6 +90,7 @@ final class Plugin {
 		add_action( 'update_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_saved' ], 10, 2 );
 		add_action( 'add_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_added' ], 10, 2 );
 		add_action( 'admin_init', [ self::class, 'rebuild_after_update' ] );
+		add_action( 'wp_initialize_site', [ self::class, 'on_initialize_site' ] );
 
 		Admin::register( $file );
 	}
@@ -129,21 +130,77 @@ final class Plugin {
 	}
 
 	/**
-	 * Schedules the first and the daily rebuild
+	 * Schedules the first and the daily rebuild, on each site of the network if activated network-wide
+	 *
+	 * @param bool $network_wide Whether the plugin is activated network-wide.
 	 */
-	public static function activate(): void {
-		self::schedule_rebuild();
-		if ( ! wp_next_scheduled( self::HOOK_REBUILD_DAILY ) ) {
-			wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', self::HOOK_REBUILD_DAILY );
+	public static function activate( bool $network_wide = false ): void {
+		self::on_sites( $network_wide, [ self::class, 'schedule_rebuilds' ] );
+	}
+
+	/**
+	 * Unschedules all rebuilds, on each site of the network if deactivated network-wide
+	 *
+	 * @param bool $network_wide Whether the plugin is deactivated network-wide.
+	 */
+	public static function deactivate( bool $network_wide = false ): void {
+		self::on_sites(
+			$network_wide,
+			function (): void {
+				wp_clear_scheduled_hook( self::HOOK_REBUILD );
+				wp_clear_scheduled_hook( self::HOOK_REBUILD_DAILY );
+			}
+		);
+	}
+
+	/**
+	 * Schedules the first and the daily rebuild of a site added to a network the plugin is active for
+	 *
+	 * @param \WP_Site $site Site.
+	 */
+	public static function on_initialize_site( \WP_Site $site ): void {
+		// Read directly, as `is_plugin_active_for_network()` is not loaded outside the admin, like in WP-CLI
+		if ( ! isset( ( (array) get_site_option( 'active_sitewide_plugins', [] ) )[ plugin_basename( self::$file ) ] ) ) {
+			return;
+		}
+		switch_to_blog( (int) $site->blog_id );
+		self::schedule_rebuilds();
+		restore_current_blog();
+	}
+
+	/**
+	 * Runs a callback on the current site, or, network-wide on multisite, on each site of the network
+	 *
+	 * Activation and deactivation hooks run only once, on the current site, even network-wide; uninstall.php does the same for removing data.
+	 *
+	 * @param bool     $network_wide Whether to run on each site of the network.
+	 * @param callable $callback Callback.
+	 */
+	private static function on_sites( bool $network_wide, callable $callback ): void {
+		if ( ! $network_wide || ! is_multisite() ) {
+			$callback();
+			return;
+		}
+		foreach ( get_sites(
+			[
+				'fields' => 'ids',
+				'number' => 0,
+			]
+		) as $id_site ) {
+			switch_to_blog( (int) $id_site );
+			$callback();
+			restore_current_blog();
 		}
 	}
 
 	/**
-	 * Unschedules all rebuilds
+	 * Schedules the first and the daily rebuild of the current site
 	 */
-	public static function deactivate(): void {
-		wp_clear_scheduled_hook( self::HOOK_REBUILD );
-		wp_clear_scheduled_hook( self::HOOK_REBUILD_DAILY );
+	private static function schedule_rebuilds(): void {
+		self::schedule_rebuild();
+		if ( ! wp_next_scheduled( self::HOOK_REBUILD_DAILY ) ) {
+			wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', self::HOOK_REBUILD_DAILY );
+		}
 	}
 
 	/**
