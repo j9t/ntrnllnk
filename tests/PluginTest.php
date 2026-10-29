@@ -28,7 +28,7 @@ final class PluginTest extends TestCase {
 		Functions\stubEscapeFunctions();
 		// Unlike Brain Monkey’s stub, WordPress keeps relative URLs relative
 		Functions\when( 'esc_url' )->alias( fn( string $url ): string => htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' ) );
-		Functions\when( 'get_permalink' )->alias( fn( \WP_Post $post ): string => 'https://example.com/' . $post->ID . '/' );
+		Functions\when( 'get_permalink' )->alias( fn( \WP_Post|int $post ): string => 'https://example.com/' . ( is_int( $post ) ? $post : $post->ID ) . '/' );
 		Functions\when( 'get_the_title' )->alias( fn( \WP_Post $post ): string => $post->post_title );
 		Functions\when( 'home_url' )->justReturn( 'https://example.com' );
 		Functions\when( 'get_file_data' )->justReturn( [ 'version' => '1.0.0' ] );
@@ -202,6 +202,101 @@ final class PluginTest extends TestCase {
 		Plugin::on_delete_term( 5, 9, 'category', null, [] );
 	}
 
+	public function test_activate_schedules_first_and_daily_rebuild(): void {
+		Functions\when( 'is_multisite' )->justReturn( false );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'switch_to_blog' )->never();
+		Functions\expect( 'wp_schedule_single_event' )->once()->with( Mockery::type( 'int' ), Plugin::HOOK_REBUILD );
+		Functions\expect( 'wp_schedule_event' )->once()->with( Mockery::type( 'int' ), 'daily', Plugin::HOOK_REBUILD_DAILY );
+
+		Plugin::activate( true );
+	}
+
+	public function test_activate_schedules_rebuilds_on_each_site_of_network_when_network_wide(): void {
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\when( 'get_current_network_id' )->justReturn( 5 );
+		Functions\expect( 'get_sites' )->once()->with(
+			Mockery::subset(
+				[
+					'network_id' => 5,
+					'number'     => 0,
+				]
+			)
+		)->andReturn( [ 1, 2 ] );
+		Functions\expect( 'switch_to_blog' )->once()->with( 1 )->ordered();
+		Functions\expect( 'switch_to_blog' )->once()->with( 2 )->ordered();
+		Functions\expect( 'restore_current_blog' )->twice();
+		Functions\expect( 'wp_schedule_single_event' )->twice();
+		Functions\expect( 'wp_schedule_event' )->twice();
+
+		Plugin::activate( true );
+	}
+
+	public function test_activate_schedules_rebuilds_on_current_site_only_when_not_network_wide(): void {
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'get_sites' )->never();
+		Functions\expect( 'wp_schedule_single_event' )->once();
+		Functions\expect( 'wp_schedule_event' )->once();
+
+		Plugin::activate( false );
+	}
+
+	public function test_deactivate_unschedules_rebuilds_on_each_site_of_network_when_network_wide(): void {
+		Functions\when( 'is_multisite' )->justReturn( true );
+		Functions\when( 'get_current_network_id' )->justReturn( 1 );
+		Functions\when( 'get_sites' )->justReturn( [ 1, 2 ] );
+		Functions\expect( 'switch_to_blog' )->twice();
+		Functions\expect( 'restore_current_blog' )->twice();
+		Functions\expect( 'wp_clear_scheduled_hook' )->times( 4 );
+
+		Plugin::deactivate( true );
+	}
+
+	public function test_on_initialize_site_schedules_rebuilds_when_network_active(): void {
+		Functions\when( 'plugin_basename' )->justReturn( 'ntrnllnk/ntrnllnk.php' );
+		// Of the site’s network, not the current one
+		Functions\expect( 'get_network_option' )->once()->with( 2, 'active_sitewide_plugins', [] )->andReturn( [ 'ntrnllnk/ntrnllnk.php' => 1 ] );
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'switch_to_blog' )->once()->with( 3 );
+		Functions\expect( 'restore_current_blog' )->once();
+		Functions\expect( 'wp_schedule_single_event' )->once();
+		Functions\expect( 'wp_schedule_event' )->once();
+
+		Plugin::on_initialize_site(
+			new \WP_Site(
+				(object) [
+					'blog_id' => '3',
+					'site_id' => '2',
+				]
+			)
+		);
+	}
+
+	public function test_on_initialize_site_does_nothing_unless_network_active(): void {
+		Functions\when( 'plugin_basename' )->justReturn( 'ntrnllnk/ntrnllnk.php' );
+		Functions\when( 'get_network_option' )->justReturn( [ 'akismet/akismet.php' => 1 ] );
+		Functions\expect( 'switch_to_blog' )->never();
+		Functions\expect( 'wp_schedule_single_event' )->never();
+
+		Plugin::on_initialize_site( new \WP_Site( (object) [ 'blog_id' => '3' ] ) );
+	}
+
+	public function test_schedule_rebuild_daily_schedules_missing_daily_rebuild(): void {
+		Functions\when( 'wp_next_scheduled' )->justReturn( false );
+		Functions\expect( 'wp_schedule_event' )->once()->with( Mockery::type( 'int' ), 'daily', Plugin::HOOK_REBUILD_DAILY );
+
+		Plugin::schedule_rebuild_daily();
+	}
+
+	public function test_schedule_rebuild_daily_keeps_scheduled_daily_rebuild(): void {
+		Functions\when( 'wp_next_scheduled' )->justReturn( time() + 3600 );
+		Functions\expect( 'wp_schedule_event' )->never();
+
+		Plugin::schedule_rebuild_daily();
+	}
+
 	public function test_register_output_appends_list_and_links_content_by_default(): void {
 		Functions\expect( 'add_shortcode' )->once()->with( 'ntrnllnk', [ Plugin::class, 'shortcode' ] );
 		Plugin::register_output();
@@ -243,7 +338,7 @@ final class PluginTest extends TestCase {
 
 	public function test_plugin_header_has_latest_changelog_version(): void {
 		// phpcs:disable WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- Reads local files
-		preg_match( '/^## \[(\d+\.\d+\.\d+)\]/m', (string) file_get_contents( dirname( __DIR__ ) . '/CHANGELOG.md' ), $matches );
+		preg_match( '/^## \[(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\]/m', (string) file_get_contents( dirname( __DIR__ ) . '/CHANGELOG.md' ), $matches );
 		$this->assertMatchesRegularExpression( '/^ \* Version: +' . preg_quote( $matches[1] ?? '', '/' ) . '$/m', (string) file_get_contents( dirname( __DIR__ ) . '/ntrnllnk.php' ) );
 		// phpcs:enable
 	}
@@ -681,6 +776,117 @@ final class PluginTest extends TestCase {
 		$this->assertSame(
 			'<p>Agatha Christie</p><p><a href="https://example.com/13/">Kluftinger</a></p>',
 			Plugin::link_content( '<p>Agatha Christie</p><p>Kluftinger</p>' )
+		);
+	}
+
+	public function test_link_content_adds_custom_links_beyond_maximum_and_before_automatic_ones(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_max'    => 1,
+				'links_inline_custom' => [ '[Agatha Christie](?p=13)', '[Accessibility](https://example.org/a11y/)' ],
+			]
+		);
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [
+			'Agatha Christie' => 11,
+			'Harry Potter'    => 12,
+			'Stephen King'    => 14,
+		];
+		Functions\expect( 'get_posts' )->once()->with( Mockery::subset( [ 'post__in' => [ 12, 14, 13 ] ] ) )->andReturn( [ $this->post( [ 'ID' => 12 ] ), $this->post( [ 'ID' => 13 ] ), $this->post( [ 'ID' => 14 ] ) ] );
+
+		$this->assertSame(
+			'<p><a href="https://example.com/12/">Harry Potter</a></p><p><a href="https://example.com/13/">Agatha Christie</a></p><p><a href="https://example.org/a11y/">Accessibility</a></p><p>Stephen King</p>',
+			Plugin::link_content( '<p>Harry Potter</p><p>Agatha Christie</p><p>Accessibility</p><p>Stephen King</p>' )
+		);
+	}
+
+	public function test_link_content_adds_custom_links_without_automatic_ones(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_max'    => 0,
+				'links_inline_custom' => [ '[Accessibility](/a11y/)' ],
+			]
+		);
+		$this->view( 7 );
+		Functions\expect( 'get_posts' )->never();
+
+		$this->assertSame( '<p><a href="/a11y/">Accessibility</a></p>', Plugin::link_content( '<p>Accessibility</p>' ) );
+	}
+
+	public function test_link_content_keeps_custom_links_despite_excluded_phrases(): void {
+		$this->settings(
+			[
+				'links_inline'                 => true,
+				'links_inline_custom'          => [ '[Accessibility](/a11y/)' ],
+				'links_inline_exclude_phrases' => [ 'Accessibility' ],
+			]
+		);
+		$this->view( 7 );
+
+		$this->assertSame( '<p><a href="/a11y/">Accessibility</a></p>', Plugin::link_content( '<p>Accessibility</p>' ) );
+	}
+
+	public function test_link_content_skips_custom_targets_already_linked_or_unpublished(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_custom' => [ '[Accessibility](/a11y/)', '[Usability](https://example.org/usability)', '[Agatha Christie](?p=13)' ],
+			]
+		);
+		$this->view( 7 );
+		Functions\when( 'get_posts' )->justReturn( [] );
+
+		$html = '<p><a href="https://www.example.com/a11y">Guide</a> on Accessibility</p><p><a href="https://example.org/usability/#start">Guide</a> on Usability</p><p>Agatha Christie</p>';
+
+		$this->assertSame( $html, Plugin::link_content( $html ) );
+	}
+
+	public function test_link_content_skips_custom_targets_of_current_post(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'links_inline_custom' => [ '[Accessibility](/7/)', '[Agatha Christie](?p=7)' ],
+			]
+		);
+		$this->view( 7 );
+		$this->options[ Plugin::OPTION_PHRASES ] = [ 'Agatha Christie' => 11 ];
+		Functions\expect( 'get_posts' )->never();
+
+		$this->assertSame( '<p>Accessibility</p><p>Agatha Christie</p>', Plugin::link_content( '<p>Accessibility</p><p>Agatha Christie</p>' ) );
+	}
+
+	public function test_link_content_makes_only_custom_links_to_posts_relative(): void {
+		$this->settings(
+			[
+				'links_inline'        => true,
+				'urls'                => 'relative',
+				'links_inline_custom' => [ '[Agatha Christie](?p=13)', '[Accessibility](https://example.com/a11y/)' ],
+			]
+		);
+		$this->view( 7 );
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 13 ] ) ] );
+		Functions\when( 'wp_make_link_relative' )->alias( fn( string $url ): string => (string) preg_replace( '#^https?://[^/]+#', '', $url ) );
+
+		$this->assertSame(
+			'<p><a href="/13/">Agatha Christie</a></p><p><a href="https://example.com/a11y/">Accessibility</a></p>',
+			Plugin::link_content( '<p>Agatha Christie</p><p>Accessibility</p>' )
+		);
+	}
+
+	public function test_link_post_reports_custom_targets(): void {
+		$this->settings( [ 'links_inline_custom' => [ '[Agatha Christie](?p=13)', '[Accessibility](/a11y/)' ] ] );
+		Functions\when( 'get_posts' )->justReturn( [ $this->post( [ 'ID' => 13 ] ) ] );
+		$linked = [];
+
+		Plugin::link_post( 7, '<p>Agatha Christie</p><p>Accessibility</p>', $linked );
+		$this->assertSame(
+			[
+				'Agatha Christie' => 13,
+				'Accessibility'   => '/a11y/',
+			],
+			$linked
 		);
 	}
 

@@ -5,7 +5,7 @@ Tags: internal links, related posts, linking, links, seo
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.1
-Stable tag: 1.2.1
+Stable tag: 1.3.0-rc.3
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -32,9 +32,13 @@ The full documentation, including all settings and how scores work, is available
 
 The list includes only posts related closely enough. If lists show unrelated posts, raise “Minimum score”; if fitting posts are missing, lower it. “Debugging” shows the scores to logged-in users.
 
+= How do I add a particular link? =
+
+Add it under “Custom links,” in Markdown, like “[Accessibility](https://example.com/accessibility/)”, or, for a post, with “?p=” and its ID, like “[Agatha Christie](?p=123)”. Custom links don’t count toward “Maximum per post.”
+
 = How do I keep a particular link out? =
 
-Use “Excluded phrases” or “Excluded posts.” In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
+Use “Excluded phrases” (for automatic links; remove custom ones from “Custom links”) or “Excluded posts.” In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
 
 = When do changed settings apply? =
 

@@ -83,24 +83,34 @@ final class Extract {
 	public static function hrefs( string $html, string $url_base = '' ): array {
 		preg_match_all( '#<a\b[^>]*?\shref\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))#i', $html, $matches, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL );
 
-		$origin_base = self::origin( $url_base );
-		$hrefs       = [];
+		$hrefs = [];
 		foreach ( $matches as $match ) {
-			$href = trim( html_entity_decode( $match[1] ?? $match[2] ?? $match[3] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
-			if ( str_starts_with( $href, '//' ) ) {
-				$href = 'https:' . $href;
-			} elseif ( str_starts_with( $href, '/' ) ) {
-				if ( null === $origin_base ) {
-					continue;
-				}
-				$href = $origin_base . $href;
-			}
-			if ( null !== self::normalize_url( $href ) ) {
+			$href = self::absolute( trim( html_entity_decode( $match[1] ?? $match[2] ?? $match[3] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8' ) ), $url_base );
+			if ( null !== $href && null !== self::normalize_url( $href ) ) {
 				$hrefs[ $href ] = true;
 			}
 		}
 
 		return array_keys( $hrefs );
+	}
+
+	/**
+	 * Returns a URL with protocol-relative and root-relative ones made absolute, or null if it cannot be
+	 *
+	 * @param string $url URL.
+	 * @param string $url_base Site URL, e.g., `https://example.com`, to resolve root-relative URLs against.
+	 */
+	public static function absolute( string $url, string $url_base = '' ): ?string {
+		if ( str_starts_with( $url, '//' ) ) {
+			return 'https:' . $url;
+		}
+		if ( str_starts_with( $url, '/' ) ) {
+			$origin_base = self::origin( $url_base );
+
+			return null === $origin_base ? null : $origin_base . $url;
+		}
+
+		return $url;
 	}
 
 	/**

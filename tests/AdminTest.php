@@ -98,13 +98,25 @@ final class AdminTest extends TestCase {
 		$this->assertSame( [ 'post_types', 'urls' ], $sections['ntrnllnk_general'] );
 		$this->assertSame( [ 'count', 'heading', 'heading_level', 'score_min' ], $sections['ntrnllnk_list'] );
 		$this->assertSame( [ 'placement', 'priority', 'language', 'weights', 'debug' ], $sections['ntrnllnk_list_advanced'] );
-		$this->assertSame( [ 'links_inline', 'links_inline_max', 'links_inline_single_words', 'links_inline_exclude_phrases', 'links_inline_exclude_posts' ], $sections['ntrnllnk_inline'] );
+		$this->assertSame( [ 'links_inline', 'links_inline_max', 'links_inline_single_words', 'links_inline_custom', 'links_inline_exclude_phrases', 'links_inline_exclude_posts' ], $sections['ntrnllnk_inline'] );
 		$this->assertSame( [ 'links_class' ], $sections['ntrnllnk_inline_advanced'] );
 	}
 
 	public function test_sanitize_offers_public_post_types_except_attachments(): void {
 		$this->assertSame( [ 'page' ], Admin::sanitize( [ 'post_types' => [ 'page', 'attachment' ] ] )['post_types'] );
 		$this->assertSame( Settings::DEFAULTS['count'], Admin::sanitize( 'invalid' )['count'] );
+	}
+
+	public function test_sanitize_reports_dropped_custom_links(): void {
+		Functions\expect( 'add_settings_error' )->once()->with( Plugin::OPTION_SETTINGS, 'ntrnllnk_links_inline_custom', Mockery::on( fn( string $message ): bool => str_contains( $message, '<code>[Phrase](https://example.com/)</code>' ) && str_contains( $message, '<code>Agatha &lt;b&gt;Christie&lt;/b&gt;</code>, <code>[Script](javascript:alert(1))</code>' ) ), 'warning' );
+
+		$this->assertSame( [ '[Harry Potter](?p=12)' ], Admin::sanitize( [ 'links_inline_custom' => "Agatha <b>Christie</b>\n[Harry Potter](?p=12)\n[Script](javascript:alert(1))" ] )['links_inline_custom'] );
+	}
+
+	public function test_sanitize_reports_nothing_for_valid_custom_links(): void {
+		Functions\expect( 'add_settings_error' )->never();
+
+		Admin::sanitize( [ 'links_inline_custom' => '[Harry Potter](?p=12)' ] );
 	}
 
 	public function test_sanitize_resets_to_defaults_on_request(): void {
@@ -138,6 +150,13 @@ final class AdminTest extends TestCase {
 		$this->assertStringContainsString( 'aria-describedby="ntrnllnk-count-description"', $field );
 		$this->assertStringContainsString( '<p class="description" id="ntrnllnk-count-description">', $field );
 		$this->assertStringNotContainsString( 'aria-describedby', $this->captured( fn() => Admin::render_field( [ 'key' => 'heading' ] ) ) );
+	}
+
+	public function test_render_field_shows_backticked_description_text_as_code(): void {
+		$field = $this->captured( fn() => Admin::render_field( [ 'key' => 'links_inline_custom' ] ) );
+
+		$this->assertStringContainsString( '<code>[Agatha Christie](?p=123)</code>', $field );
+		$this->assertStringNotContainsString( '`', $field );
 	}
 
 	/**

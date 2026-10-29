@@ -52,7 +52,19 @@ What counts as a post’s subject comes from its title: names and other runs of 
 
 With “Single words” on, single capitalized words from titles count, too, like product or person names (“Mistral,” “Kluftinger”). To keep out common words, such a word needs at least three letters, must not start the title (or follow a colon), must not appear in lowercase in the post’s text, and must not appear in other titles, which makes it a topic of the site rather than of the post (like “AI”). This makes for more links, but also for more that miss, especially in German where all nouns are capitalized. The report shows them, and “Excluded phrases” removes them.
 
-In-content links are added when a post is shown, so turning them off removes them all. To keep particular links out, use “Excluded phrases” or “Excluded posts.” For more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
+In-content links are added when a post is shown, so turning them off removes them all, including custom ones. To keep particular links out, use “Excluded phrases” (for automatic links; remove custom ones from “Custom links”) or “Excluded posts.” For more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
+
+#### Custom Links
+
+To link phrases ntrnllnk doesn’t find, or to other targets, add them under “Custom links,” one per line, using Markdown:
+
+```markdown
+[Agatha Christie](?p=123)
+[Accessibility](https://example.com/accessibility/)
+[Web Components](/guides/web-components/)
+```
+
+The target can be a post, as `?p=` and its ID (linked by its permalink, and only while published and of one of the “Post types”), a root-relative URL, or an absolute HTTP(S) URL; URLs are used as entered. Custom links follow the same rules as the others—first mention only, case-sensitive (for other spellings, add a line each), at most one per paragraph, not to a target the text already links to, nor to the post itself—with three differences: They don’t count toward “Maximum per post,” so they also work with it set to 0; they take precedence over automatic links, also for the same phrase; and “Excluded phrases” doesn’t apply to them. When saving, ntrnllnk leaves out lines that aren’t such links, or repeat a phrase, and lists them in a warning.
 
 ### Settings
 
@@ -73,9 +85,10 @@ The settings page, under Settings → ntrnllnk, needs the `manage_options` capab
 | Debugging | Off | Whether to show scores of related posts, and posts below “Minimum score,” to logged-in users (contributors and above; see [“Scores”](#scores)) |
 | **In-Content Links** | | |
 | In-content links | On | Whether to link mentions of other posts’ subjects in the text |
-| Maximum per post | 3 | Maximum number of in-content links per post |
+| Maximum per post | 3 | Maximum number of automatic in-content links per post |
 | Single words | Off | Whether single words from titles count as subjects, too, like product or person names, for more links, though some may miss |
-| Excluded phrases | None | Phrases not to link, one per line, e.g., “Happy End” and “Miss Marple” |
+| Custom links | None | Links to add to the first mention of a phrase, one per line, in Markdown, e.g., “[Agatha Christie](?p=123)” (see [“Custom Links”](#custom-links)); they don’t count toward “Maximum per post” |
+| Excluded phrases | None | Phrases not to link automatically, one per line, e.g., “Happy End” and “Miss Marple” |
 | Excluded posts | None | IDs of posts whose content gets no in-content links, separated by commas |
 | **In-Content Links → Advanced** | | |
 | Class | Off | Whether in-content links get the class `ntrnllnk-inline` (links in the list can be selected with `.ntrnllnk a`) |
@@ -127,7 +140,7 @@ Stopwords and stems depend on the language. With “Language” set to “Detect
 
 Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in rebuilds (see [“When Changes Apply”](#when-changes-apply)). A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
 
-Uninstalling (deleting) the plugin removes its post meta, options (including its settings), and scheduled events; deactivating it only stops rebuilds, and keeps the data.
+Uninstalling (deleting) the plugin removes its post meta, options (including its settings), and scheduled events; deactivating it only stops rebuilds, and keeps the data. On multisite, each site has its own settings and data; network-wide, activating, deactivating, and uninstalling apply to every site of the network, and sites added later get their rebuilds scheduled, too.
 
 ### Performance
 

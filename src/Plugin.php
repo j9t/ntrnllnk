@@ -90,6 +90,8 @@ final class Plugin {
 		add_action( 'update_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_saved' ], 10, 2 );
 		add_action( 'add_option_' . self::OPTION_SETTINGS, [ self::class, 'on_settings_added' ], 10, 2 );
 		add_action( 'admin_init', [ self::class, 'rebuild_after_update' ] );
+		add_action( 'admin_init', [ self::class, 'schedule_rebuild_daily' ] );
+		add_action( 'wp_initialize_site', [ self::class, 'on_initialize_site' ] );
 
 		Admin::register( $file );
 	}
@@ -129,21 +131,85 @@ final class Plugin {
 	}
 
 	/**
-	 * Schedules the first and the daily rebuild
+	 * Schedules the first and the daily rebuild, on each site of the network if activated network-wide
+	 *
+	 * @param bool $network_wide Whether the plugin is activated network-wide.
 	 */
-	public static function activate(): void {
-		self::schedule_rebuild();
-		if ( ! wp_next_scheduled( self::HOOK_REBUILD_DAILY ) ) {
-			wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', self::HOOK_REBUILD_DAILY );
+	public static function activate( bool $network_wide = false ): void {
+		self::on_sites( $network_wide, [ self::class, 'schedule_rebuilds' ] );
+	}
+
+	/**
+	 * Unschedules all rebuilds, on each site of the network if deactivated network-wide
+	 *
+	 * @param bool $network_wide Whether the plugin is deactivated network-wide.
+	 */
+	public static function deactivate( bool $network_wide = false ): void {
+		self::on_sites(
+			$network_wide,
+			function (): void {
+				wp_clear_scheduled_hook( self::HOOK_REBUILD );
+				wp_clear_scheduled_hook( self::HOOK_REBUILD_DAILY );
+			}
+		);
+	}
+
+	/**
+	 * Schedules the first and the daily rebuild of a site added to a network the plugin is active for
+	 *
+	 * @param \WP_Site $site Site.
+	 */
+	public static function on_initialize_site( \WP_Site $site ): void {
+		// Read directly, as `is_plugin_active_for_network()` is not loaded outside the admin, like in WP-CLI, and only checks the current network
+		if ( ! isset( ( (array) get_network_option( (int) $site->network_id, 'active_sitewide_plugins', [] ) )[ plugin_basename( self::$file ) ] ) ) {
+			return;
+		}
+		switch_to_blog( (int) $site->blog_id );
+		self::schedule_rebuilds();
+		restore_current_blog();
+	}
+
+	/**
+	 * Runs a callback on the current site, or, network-wide on multisite, on each site of the current network
+	 *
+	 * Activation and deactivation hooks run only once, on the current site, even network-wide; uninstall.php does the same for removing data, though on all networks.
+	 *
+	 * @param bool     $network_wide Whether to run on each site of the network.
+	 * @param callable $callback Callback.
+	 */
+	private static function on_sites( bool $network_wide, callable $callback ): void {
+		if ( ! $network_wide || ! is_multisite() ) {
+			$callback();
+			return;
+		}
+		foreach ( get_sites(
+			[
+				'fields'     => 'ids',
+				'network_id' => get_current_network_id(),
+				'number'     => 0,
+			]
+		) as $id_site ) {
+			switch_to_blog( (int) $id_site );
+			$callback();
+			restore_current_blog();
 		}
 	}
 
 	/**
-	 * Unschedules all rebuilds
+	 * Schedules the first and the daily rebuild of the current site
 	 */
-	public static function deactivate(): void {
-		wp_clear_scheduled_hook( self::HOOK_REBUILD );
-		wp_clear_scheduled_hook( self::HOOK_REBUILD_DAILY );
+	private static function schedule_rebuilds(): void {
+		self::schedule_rebuild();
+		self::schedule_rebuild_daily();
+	}
+
+	/**
+	 * Schedules the daily rebuild of the current site, unless it is scheduled
+	 */
+	public static function schedule_rebuild_daily(): void {
+		if ( ! wp_next_scheduled( self::HOOK_REBUILD_DAILY ) ) {
+			wp_schedule_event( time() + DAY_IN_SECONDS, 'daily', self::HOOK_REBUILD_DAILY );
+		}
 	}
 
 	/**
@@ -565,11 +631,11 @@ final class Plugin {
 	}
 
 	/**
-	 * Links the first mentions of other posts’ phrases in a post’s content, wherever it is shown
+	 * Links the first mentions of other posts’ phrases, and of custom links’ phrases, in a post’s content, wherever it is shown
 	 *
-	 * @param int                $id Post ID.
-	 * @param string             $content Post content, as filtered for display.
-	 * @param array<string, int> $linked Phrases that got linked, with the IDs of the posts they link to.
+	 * @param int                       $id Post ID.
+	 * @param string                    $content Post content, as filtered for display.
+	 * @param array<string, int|string> $linked Phrases that got linked, with the IDs of the posts they link to, or, for custom links to URLs, the URLs.
 	 */
 	public static function link_post( int $id, string $content, array &$linked = [] ): string {
 		$linked   = [];
@@ -578,6 +644,7 @@ final class Plugin {
 			return $content;
 		}
 
+		$targets_custom = Linker::mentioned( $content, Settings::links( $settings['links_inline_custom'] ) );
 		/**
 		 * Filters the phrases to link in a post’s content
 		 *
@@ -585,23 +652,26 @@ final class Plugin {
 		 * @param int                $id ID of the post whose content gets linked.
 		 */
 		$phrases = apply_filters( 'ntrnllnk_phrases', (array) get_option( self::OPTION_PHRASES, [] ), $id );
-		$phrases = array_diff_key( $phrases, array_flip( $settings['links_inline_exclude_phrases'] ) );
-		$phrases = array_filter( $phrases, fn( $id_target ): bool => (int) $id_target !== $id );
+		// Custom phrases replace automatic ones, even where they end up unlinked
+		$phrases        = array_diff_key( $phrases, array_flip( $settings['links_inline_exclude_phrases'] ), $targets_custom );
+		$phrases        = array_filter( $phrases, fn( $id_target ): bool => (int) $id_target !== $id );
+		$targets_custom = array_filter( $targets_custom, fn( int|string $target ): bool => $target !== $id );
 		// Only phrases the content mentions, so that the work below depends on the post, not on the site
 		$phrases = Linker::mentioned( $content, $phrases );
-		if ( ! $phrases ) {
+		if ( ! $phrases && ! $targets_custom ) {
 			return $content;
 		}
 
-		$posts = get_posts(
+		$ids_target = array_values( array_unique( [ ...array_map( 'intval', $phrases ), ...array_filter( $targets_custom, 'is_int' ) ] ) );
+		$posts      = $ids_target ? get_posts(
 			[
-				'post__in'       => array_values( array_unique( array_map( 'intval', $phrases ) ) ),
+				'post__in'       => $ids_target,
 				'post_type'      => $settings['post_types'],
 				'post_status'    => 'publish',
 				'has_password'   => false,
 				'posts_per_page' => -1,
 			]
-		);
+		) : [];
 
 		$urls     = [];
 		$ids_urls = [];
@@ -616,26 +686,47 @@ final class Plugin {
 		// Targets the content links to, by permalink or by ID (like `?p=123`), rather than by resolving each URL, which can take a query
 		$host_site  = (string) Extract::normalize_url( home_url( '/' ) );
 		$ids_linked = [];
+		$urls_href  = [];
 		foreach ( Extract::hrefs( preg_replace( '#<section class="ntrnllnk">.*?</section>#s', '', $content ) ?? '', home_url() ) as $href ) {
-			$url = (string) Extract::normalize_url( $href );
+			$url               = (string) Extract::normalize_url( $href );
+			$urls_href[ $url ] = true;
 			if ( str_starts_with( $url . '/', $host_site . '/' ) ) {
 				// Pages of paginated posts (`/book/2/`) count as the post
 				$ids_linked[ Extract::id( $href ) ?? $ids_urls[ $url ] ?? $ids_urls[ (string) preg_replace( '#/\d+$#', '', $url ) ] ?? 0 ] = true;
 			}
 		}
 
-		$urls_phrases = [];
-		foreach ( $phrases as $phrase => $id_target ) {
+		$url_post = function ( int $id_target ) use ( $urls, $ids_linked, $settings ): ?string {
 			$url = $urls[ $id_target ] ?? null;
-			if ( null !== $url && ! isset( $ids_linked[ $id_target ] ) ) {
-				$urls_phrases[ (string) $phrase ] = 'relative' === $settings['urls'] ? wp_make_link_relative( $url ) : $url;
+			if ( null === $url || isset( $ids_linked[ $id_target ] ) ) {
+				return null;
+			}
+
+			return 'relative' === $settings['urls'] ? wp_make_link_relative( $url ) : $url;
+		};
+
+		$urls_phrases = array_filter( array_map( fn( $id_target ): ?string => $url_post( (int) $id_target ), $phrases ) );
+
+		// Custom links to URLs as entered, unless the content links to them already, or they lead to the post itself
+		$urls_custom = [];
+		$url_self    = null;
+		foreach ( $targets_custom as $phrase => $target ) {
+			if ( is_int( $target ) ) {
+				$url = $url_post( $target );
+			} else {
+				$url_self ??= Extract::normalize_url( (string) get_permalink( $id ) );
+				$url_target = Extract::normalize_url( (string) Extract::absolute( $target, home_url() ) );
+				$url        = isset( $urls_href[ (string) $url_target ] ) || $url_target === $url_self ? null : $target;
+			}
+			if ( null !== $url ) {
+				$urls_custom[ (string) $phrase ] = $url;
 			}
 		}
 
 		$urls_linked = [];
-		$content     = Linker::link( $content, $urls_phrases, $settings['links_inline_max'], $settings['links_class'] ? 'ntrnllnk-inline' : '', $urls_linked );
+		$content     = Linker::link( $content, $urls_phrases, $settings['links_inline_max'], $settings['links_class'] ? 'ntrnllnk-inline' : '', $urls_linked, $urls_custom );
 		foreach ( array_keys( $urls_linked ) as $phrase ) {
-			$linked[ $phrase ] = (int) $phrases[ $phrase ];
+			$linked[ $phrase ] = $targets_custom[ $phrase ] ?? (int) $phrases[ $phrase ];
 		}
 
 		return $content;

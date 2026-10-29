@@ -42,20 +42,23 @@ final class Linker {
 	/**
 	 * Returns HTML with the first mention of each target’s phrases linked
 	 *
-	 * Matches are case-sensitive and respect word boundaries; at the same position, longer phrases win. Each target is linked once, and each paragraph (or other block) gets one link at most, so that links spread out.
+	 * Matches are case-sensitive and respect word boundaries; at the same position, longer phrases win. Each target is linked once, and each paragraph (or other block) gets one link at most, so that links spread out; custom phrases come first there, and do not count toward the maximum.
 	 *
 	 * @param string                $html HTML.
 	 * @param array<string, string> $urls Phrases and their target URLs.
 	 * @param int                   $count Maximum number of links.
 	 * @param string                $class_link Class of the links, if any.
 	 * @param array<string, string> $linked Phrases that got linked, with their target URLs, in order.
+	 * @param array<string, string> $urls_custom Custom phrases and their target URLs.
 	 */
-	public static function link( string $html, array $urls, int $count, string $class_link = '', array &$linked = [] ): string {
+	public static function link( string $html, array $urls, int $count, string $class_link = '', array &$linked = [], array $urls_custom = [] ): string {
 		$linked = [];
-		if ( ! $urls || $count < 1 ) {
+		if ( ( ! $urls || $count < 1 ) && ! $urls_custom ) {
 			return $html;
 		}
-		uksort( $urls, fn( string $a, string $b ): int => mb_strlen( $b ) <=> mb_strlen( $a ) );
+		$longest_first = fn( string $a, string $b ): int => mb_strlen( $b ) <=> mb_strlen( $a );
+		uksort( $urls, $longest_first );
+		uksort( $urls_custom, $longest_first );
 
 		// Raw text elements as one token each; unclosed tags and elements run to the end, as in browsers
 		$elements_raw = implode( '|', array_map( fn( string $element ): string => '<' . $element . '\b' . self::TAG_INSIDE . '>.*?(?:<\/' . $element . '\s*>|\z)', self::ELEMENTS_RAW ) );
@@ -64,8 +67,19 @@ final class Linker {
 			return $html;
 		}
 
+		$link = function ( int $index, string $phrase, bool $custom ) use ( &$tokens, &$linked, &$urls, &$urls_custom, &$count, $class_link ): void {
+			$url               = $custom ? $urls_custom[ $phrase ] : $urls[ $phrase ];
+			$tokens[ $index ]  = self::link_text( $tokens[ $index ], $phrase, $url, $class_link );
+			$linked[ $phrase ] = $url;
+			$count            -= $custom ? 0 : 1;
+			$urls              = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
+			$urls_custom       = array_filter( $urls_custom, fn( string $url_other ): bool => $url_other !== $url );
+		};
+
 		$depth_skip   = 0;
 		$block_linked = false;
+		// First automatic match of the current block, linked at its end unless a custom match follows
+		$pending = null;
 		foreach ( $tokens as $index => $token ) {
 			if ( str_starts_with( $token, '<' ) ) {
 				if ( ! preg_match( '/^<(\/?)([a-z][a-z0-9]*)/i', $token, $match ) ) {
@@ -77,19 +91,30 @@ final class Linker {
 					$depth_skip = '/' === $match[1] ? max( 0, $depth_skip - 1 ) : $depth_skip + ( $closed ? 0 : 1 );
 				}
 				if ( in_array( $element, self::ELEMENTS_BLOCK, true ) ) {
+					if ( null !== $pending ) {
+						$link( ...$pending );
+						$pending = null;
+					}
 					$block_linked = false;
+					if ( ( ! $urls || $count < 1 ) && ! $urls_custom ) {
+						break;
+					}
 				}
 			} elseif ( 0 === $depth_skip && ! $block_linked && '' !== trim( $token ) ) {
-				$tokens[ $index ] = self::link_text( $token, $urls, $class_link, $linked );
-				if ( $tokens[ $index ] !== $token ) {
+				$phrase = self::match( $token, $urls_custom );
+				if ( null !== $phrase ) {
+					$pending = null;
+					$link( $index, $phrase, true );
 					$block_linked = true;
-					--$count;
-				}
-				if ( ! $urls || $count < 1 ) {
-					break;
+				} elseif ( null === $pending && $count > 0 ) {
+					$phrase  = self::match( $token, $urls );
+					$pending = null === $phrase ? null : [ $index, $phrase, false ];
 				}
 			}//end if
 		}//end foreach
+		if ( null !== $pending ) {
+			$link( ...$pending );
+		}
 
 		return implode( '', $tokens );
 	}
@@ -109,31 +134,45 @@ final class Linker {
 	}
 
 	/**
-	 * Links the first phrase mention in a text node, if any, and removes its target
+	 * Returns the phrase mentioned first in a text node, or null if there is none
 	 *
 	 * @param string                $text Text node (HTML-escaped).
 	 * @param array<string, string> $urls Phrases and their target URLs, longest first.
-	 * @param string                $class_link Class of the link, if any.
-	 * @param array<string, string> $linked Phrases linked so far, with their target URLs.
 	 */
-	private static function link_text( string $text, array &$urls, string $class_link, array &$linked ): string {
+	private static function match( string $text, array $urls ): ?string {
+		if ( ! $urls ) {
+			return null;
+		}
 		$phrases = [];
 		foreach ( array_keys( $urls ) as $phrase ) {
 			$phrases[ htmlspecialchars( $phrase, ENT_NOQUOTES, 'UTF-8' ) ] = $phrase;
 		}
-		$pattern = '/(?<![\p{L}\p{N}])(' . implode( '|', array_map( fn( string $phrase ): string => preg_quote( $phrase, '/' ), array_keys( $phrases ) ) ) . ')' . self::SUFFIXES . '(?![\p{L}\p{N}])/u';
-		if ( ! preg_match( $pattern, $text, $match, PREG_OFFSET_CAPTURE ) ) {
-			return $text;
-		}
 
+		return preg_match( self::pattern( array_keys( $phrases ) ), $text, $match ) ? $phrases[ $match[1] ] : null;
+	}
+
+	/**
+	 * Links the first mention of a phrase in a text node
+	 *
+	 * @param string $text Text node (HTML-escaped).
+	 * @param string $phrase Phrase.
+	 * @param string $url Target URL.
+	 * @param string $class_link Class of the link, if any.
+	 */
+	private static function link_text( string $text, string $phrase, string $url, string $class_link ): string {
+		preg_match( self::pattern( [ htmlspecialchars( $phrase, ENT_NOQUOTES, 'UTF-8' ) ] ), $text, $match, PREG_OFFSET_CAPTURE );
 		[ $mention, $offset ] = $match[0];
-		$phrase               = $phrases[ $match[1][0] ];
-		$url                  = $urls[ $phrase ];
-		$linked[ $phrase ]    = $url;
-		$urls                 = array_filter( $urls, fn( string $url_other ): bool => $url_other !== $url );
-
-		$attribute_class = '' === $class_link ? '' : ' class="' . htmlspecialchars( $class_link, ENT_QUOTES, 'UTF-8' ) . '"';
+		$attribute_class      = '' === $class_link ? '' : ' class="' . htmlspecialchars( $class_link, ENT_QUOTES, 'UTF-8' ) . '"';
 
 		return substr( $text, 0, $offset ) . '<a href="' . htmlspecialchars( $url, ENT_QUOTES, 'UTF-8' ) . '"' . $attribute_class . '>' . $mention . '</a>' . substr( $text, $offset + strlen( $mention ) );
+	}
+
+	/**
+	 * Returns the pattern matching any of the phrases, with genitive endings, at word boundaries
+	 *
+	 * @param string[] $phrases Phrases (HTML-escaped), longest first.
+	 */
+	private static function pattern( array $phrases ): string {
+		return '/(?<![\p{L}\p{N}])(' . implode( '|', array_map( fn( string $phrase ): string => preg_quote( $phrase, '/' ), $phrases ) ) . ')' . self::SUFFIXES . '(?![\p{L}\p{N}])/u';
 	}
 }

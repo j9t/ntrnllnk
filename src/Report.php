@@ -282,7 +282,7 @@ final class Report {
 			if ( $settings['links_inline'] ) {
 				Plugin::link_post( $post->ID, self::content( $post ), $linked[ $post->ID ] );
 			}
-			$ids = [ ...$ids, ...array_keys( $entries[ $post->ID ] ), ...array_values( $linked[ $post->ID ] ) ];
+			$ids = [ ...$ids, ...array_keys( $entries[ $post->ID ] ), ...array_filter( $linked[ $post->ID ], 'is_int' ) ];
 		}
 
 		// Titles and URLs of all targets at once; unpublished ones are left out, as when shown
@@ -318,9 +318,14 @@ final class Report {
 				}
 			}
 			$links = [];
-			foreach ( $linked[ $post->ID ] as $phrase => $id_target ) {
-				if ( isset( $targets[ $id_target ] ) ) {
-					$links[] = [ 'phrase' => (string) $phrase ] + $targets[ $id_target ];
+			foreach ( $linked[ $post->ID ] as $phrase => $target ) {
+				// Custom links to URLs show the URL as title
+				$target = is_int( $target ) ? $targets[ $target ] ?? null : [
+					'title' => $target,
+					'url'   => $target,
+				];
+				if ( null !== $target ) {
+					$links[] = [ 'phrase' => (string) $phrase ] + $target;
 				}
 			}
 			$rows[] = [

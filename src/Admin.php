@@ -94,6 +94,21 @@ final class Admin {
 			$input = Settings::DEFAULTS;
 		}
 
+		$links_invalid = Settings::links_invalid( $input['links_inline_custom'] ?? [] );
+		if ( $links_invalid ) {
+			add_settings_error(
+				Plugin::OPTION_SETTINGS,
+				'ntrnllnk_links_inline_custom',
+				sprintf(
+					/* translators: 1: Example link, 2: Left-out lines */
+					esc_html__( 'Some custom links were left out, as they aren’t Markdown links like %1$s, or repeat a phrase: %2$s.', 'ntrnllnk' ),
+					'<code>[Phrase](https://example.com/)</code>',
+					implode( ', ', array_map( fn( string $line ): string => '<code>' . esc_html( $line ) . '</code>', $links_invalid ) )
+				),
+				'warning'
+			);
+		}
+
 		return Settings::sanitize( $input, array_keys( self::post_types() ) );
 	}
 
@@ -253,7 +268,8 @@ final class Admin {
 		}//end switch
 
 		if ( '' !== $description ) {
-			$html .= sprintf( '<p class="description" id="%s-description">%s</p>', esc_attr( $id ), esc_html( $description ) );
+			// Backticked text as code, after escaping, so that translations cannot add markup
+			$html .= sprintf( '<p class="description" id="%s-description">%s</p>', esc_attr( $id ), preg_replace( '/`([^`]+)`/', '<code>$1</code>', esc_html( $description ) ) );
 		}
 
 		echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped while built
@@ -481,11 +497,17 @@ final class Admin {
 				'text'        => __( 'Also link single words from titles, like product or person names', 'ntrnllnk' ),
 				'description' => __( 'More links, though some may miss: Check the report, and exclude phrases as needed.', 'ntrnllnk' ),
 			],
+			'links_inline_custom'          => [
+				'section'     => 'inline',
+				'label'       => __( 'Custom links', 'ntrnllnk' ),
+				'type'        => 'textarea',
+				'description' => __( 'Links to add to the first mention of a phrase, besides the maximum, one per line, in Markdown, like `[Accessibility](https://example.com/accessibility/)`; for a post, use `?p=` and its ID, like `[Agatha Christie](?p=123)`.', 'ntrnllnk' ),
+			],
 			'links_inline_exclude_phrases' => [
 				'section'     => 'inline',
 				'label'       => __( 'Excluded phrases', 'ntrnllnk' ),
 				'type'        => 'textarea',
-				'description' => __( 'Phrases not to link, one per line.', 'ntrnllnk' ),
+				'description' => __( 'Phrases not to link automatically, one per line.', 'ntrnllnk' ),
 			],
 			'links_inline_exclude_posts'   => [
 				'section'     => 'inline',
