@@ -23,10 +23,12 @@ jobs:
     name: "PHP ${{ matrix.php }}"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: "Check out repository"
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: shivammathur/setup-php@v2
+      - name: "Set up PHP"
+        uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
           coverage: none
@@ -36,5 +38,5 @@ jobs:
         # Lint results don’t vary by PHP version
         if: matrix.php == '8.5'
         run: composer lint
-      - name: "Test"
+      - name: "Run tests"
         run: composer test
