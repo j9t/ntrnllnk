@@ -33,9 +33,9 @@ It ships without styles, so that the list looks like the rest of the content, bu
 
 #### Placement
 
-By default, the list follows the content, as part of it. If other plugins append things, too, like ratings or share buttons, “Priority” decides the order: the lower the number, the higher the priority, that is, the further up the list shows.
+By default, the list follows the content, as part of it. If other plugins append things, too, like ratings or share buttons, _Priority_ decides the order: the lower the number, the higher the priority, that is, the further up the list shows.
 
-To place the list yourself, set “Placement” to “Manual,” and use either
+To place the list yourself, set _Placement_ to _Manual_, and use either
 
 * the `[ntrnllnk]` shortcode, in a post’s content, or
 * `ntrnllnk_render()`, in a theme template; it outputs the list of the current post, or of the post whose ID it receives.
@@ -44,19 +44,19 @@ The shortcode also works with automatic placement: ntrnllnk then doesn’t appen
 
 ### In-Content Links
 
-Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “The Best Books by Agatha Christie.” It adds at most three such links per post by default (“Maximum per post”), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
+Besides listing related posts, ntrnllnk links the first mention of another post’s subject in the text—for example, “Agatha Christie” in a post about crime novels to the post “The Best Books by Agatha Christie.” It adds at most three such links per post by default (_Maximum per post_), and at most one per paragraph (or list item), so that they spread out. It leaves headings, existing links, code, tables, and figures (like images with their captions) alone.
 
 The text doesn’t link to the same post twice: ntrnllnk links each post once, and not at all if the text already links to it (like `/?p=123`). The list of related posts doesn’t count here, so a post may appear in both.
 
-What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Jennifer L. Armentrout,” “Herr der Ringe”; single words are too often common nouns, especially in German, so they count only with “Single words” on), that the post’s own text mentions at least three times. A title’s first word, or the first one after a colon, counts as part of a name only if the text doesn’t use it in lowercase, so that “Is Web3 dead?” doesn’t make “Is Web3” a subject. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christie’s”).
+What counts as a post’s subject comes from its title: names and other runs of capitalized words, of two words or more (“Agatha Christie,” “Jennifer L. Armentrout,” “Herr der Ringe”; single words are too often common nouns, especially in German, so they count only with _Single words_ on), that the post’s own text mentions at least three times. A title’s first word, or the first one after a colon, counts as part of a name only if the text doesn’t use it in lowercase, so that “Is Web3 dead?” doesn’t make “Is Web3” a subject. If several titles contain the same phrase—like an author’s overview and reading-order posts—it goes to the post whose text mentions it most; on a tie, to the newer post. Matching is case-sensitive and includes the genitive (“Agatha Christie’s”).
 
-With “Single words” on, single capitalized words from titles count, too, like product or person names (“Mistral,” “Kluftinger”). To keep out common words, such a word needs at least three letters, must not start the title (or follow a colon), must not appear in lowercase in the post’s text, and must not appear in other titles, which makes it a topic of the site rather than of the post (like “AI”). This makes for more links, but also for more that miss, especially in German where all nouns are capitalized. The report shows them, and “Excluded phrases” removes them.
+With _Single words_ on, single capitalized words from titles count, too, like product or person names (“Mistral,” “Kluftinger”). To keep out common words, such a word needs at least three letters, must not start the title (or follow a colon), must not appear in lowercase in the post’s text, and must not appear in other titles, which makes it a topic of the site rather than of the post (like “AI”). This makes for more links, but also for more that miss, especially in German where all nouns are capitalized. The report shows them, and _Excluded phrases_ removes them.
 
-In-content links are added when a post is shown, so turning them off removes them all, including custom ones. To keep particular links out, use “Excluded phrases” (for automatic links; remove custom ones from “Custom links”) or “Excluded posts.” For more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
+In-content links are added when a post is shown, so turning them off removes them all, including custom ones. To keep particular links out, use _Excluded phrases_ (for automatic links; remove custom ones from _Custom links_) or _Excluded posts_. For more control, the `ntrnllnk_phrases` filter receives all phrases, with the IDs of the posts they link to, and the ID of the post being shown, to remove, add, or redirect phrases.
 
 #### Custom Links
 
-To link phrases ntrnllnk doesn’t find, or to other targets, add them under “Custom links,” one per line, using Markdown:
+To link phrases ntrnllnk doesn’t find, or to other targets, add them under _Custom links_, one per line, using Markdown:
 
 ```markdown
 [Agatha Christie](?p=123)
@@ -64,30 +64,30 @@ To link phrases ntrnllnk doesn’t find, or to other targets, add them under “
 [Web Components](/guides/web-components/)
 ```
 
-The target can be a post, as `?p=` and its ID (linked by its permalink, and only while published and of one of the “Post types”), a root-relative URL, or an absolute HTTP(S) URL; URLs are used as entered. Custom links follow the same rules as the others—first mention only, case-sensitive (for other spellings, add a line each), at most one per paragraph, not to a target the text already links to, nor to the post itself—with three differences: They don’t count toward “Maximum per post,” so they also work with it set to 0; they take precedence over automatic links, also for the same phrase; and “Excluded phrases” doesn’t apply to them. When saving, ntrnllnk leaves out lines that aren’t such links, or repeat a phrase, and lists them in a warning.
+The target can be a post, as `?p=` and its ID (linked by its permalink, and only while published and of one of the _Post types_), a root-relative URL, or an absolute HTTP(S) URL; URLs are used as entered. Custom links follow the same rules as the others—first mention only, case-sensitive (for other spellings, add a line each), at most one per paragraph, not to a target the text already links to, nor to the post itself—with three differences: They don’t count toward _Maximum per post_, so they also work with it set to 0; they take precedence over automatic links, also for the same phrase; and _Excluded phrases_ doesn’t apply to them. When saving, ntrnllnk leaves out lines that aren’t such links, or repeat a phrase, and lists them in a warning.
 
 ### Settings
 
-The settings page, under Settings → ntrnllnk, needs the `manage_options` capability (administrators, by default). Less common settings are under each feature’s “Advanced,” and settings that apply to both features under “General.” Each setting shows its default, and “Reset to Defaults” restores all settings.
+The settings page, under _Settings_ → _ntrnllnk_, needs the `manage_options` capability (administrators, by default). Less common settings are under each feature’s _Advanced_, and settings that apply to both features under _General_. Each setting shows its default, and _Reset to Defaults_ restores all settings.
 
 | Setting | Default | Description |
 |---|---|---|
 | **Related Posts** | | |
 | Number of related posts | 5 | Maximum number of related posts (up to 20); 0 turns the list off |
 | Heading | “Further reading” (translated) | Heading of the list |
-| Heading level | h2 | Heading level (h2–h6), or “Automatic” for the highest level in the post’s content (or h2 without headings), so that the list sits at the level of the content’s top sections |
+| Heading level | h2 | Heading level (h2–h6), or _Automatic_ for the highest level in the post’s content (or h2 without headings), so that the list sits at the level of the content’s top sections |
 | Minimum score | 0.04 | How closely posts need to be related (0–1) to show; posts with fewer matches show fewer related posts, or no list at all (see [“Scores”](#scores)) |
 | **Related Posts → Advanced** | | |
-| Placement | After the content | “After the content” to append the list to the content, “Manual” to place it yourself |
+| Placement | After the content | _After the content_ to append the list to the content, _Manual_ to place it yourself |
 | Priority | 20 | With placement after the content, when the list gets appended to the content, relative to other plugins |
 | Language | Detect per post | Language of the content: detected per post, or German or English for all posts (per initial release) |
 | Weight of words | 0.6 | How much shared words count, compared with shared links, which get the rest (0.4 by default) |
-| Debugging | Off | Whether to show scores of related posts, and posts below “Minimum score,” to logged-in users (contributors and above; see [“Scores”](#scores)) |
+| Debugging | Off | Whether to show scores of related posts, and posts below _Minimum score_, to logged-in users (contributors and above; see [“Scores”](#scores)) |
 | **In-Content Links** | | |
 | In-content links | On | Whether to link mentions of other posts’ subjects in the text |
 | Maximum per post | 3 | Maximum number of automatic in-content links per post |
 | Single words | Off | Whether single words from titles count as subjects, too, like product or person names, for more links, though some may miss |
-| Custom links | None | Links to add to the first mention of a phrase, one per line, in Markdown, e.g., “[Agatha Christie](?p=123)” (see [“Custom Links”](#custom-links)); they don’t count toward “Maximum per post” |
+| Custom links | None | Links to add to the first mention of a phrase, one per line, in Markdown, e.g., “[Agatha Christie](?p=123)” (see [“Custom Links”](#custom-links)); they don’t count toward _Maximum per post_ |
 | Excluded phrases | None | Phrases not to link automatically, one per line, e.g., “Happy End” and “Miss Marple” |
 | Excluded posts | None | IDs of posts whose content gets no in-content links, separated by commas |
 | **In-Content Links → Advanced** | | |
@@ -100,20 +100,20 @@ The settings page, under Settings → ntrnllnk, needs the `manage_options` capab
 
 The report, under _Tools_ → _ntrnllnk_, shows for each post:
 
-* **Related posts:** its list, with scores; posts below “Minimum score,” which visitors don’t see, are collapsed below it
+* **Related posts:** its list, with scores; posts below _Minimum score_, which visitors don’t see, are collapsed below it
 * **In-content links:** the links ntrnllnk adds to its text, as phrase and target
 * **Listed by:** how many other posts’ lists include it
 
-“No list” and “Never listed” filter for posts without a list and posts no list includes—candidates for better linking. In-content links aren’t stored, so the report works them out for the 20 posts on each page as it opens; depending on what other plugins do with the content, this may take a moment. Like the settings page, the report needs the `manage_options` capability.
+_No list_ and _Never listed_ filter for posts without a list and posts no list includes—candidates for better linking. In-content links aren’t stored, so the report works them out for the 20 posts on each page as it opens; depending on what other plugins do with the content, this may take a moment. Like the settings page, the report needs the `manage_options` capability.
 
 ### When Changes Apply
 
-**To apply changed settings, save them; a rebuild starts with the next page view, which is the settings page reloading after saving.** It takes a few seconds on most sites (see [“Performance”](#performance)). Under “Rebuild,” the settings page shows whether one is running and when the last one finished; “Rebuild Now” starts one right away, without changing anything.
+**To apply changed settings, save them; a rebuild starts with the next page view, which is the settings page reloading after saving.** It takes a few seconds on most sites (see [“Performance”](#performance)). Under _Rebuild_, the settings page shows whether one is running and when the last one finished; _Rebuild Now_ starts one right away, without changing anything.
 
 ntrnllnk works out related posts in the background, in rebuilds, and stores them; that’s why settings take effect at different times:
 
-* **Display settings**—“Heading,” “Heading level,” “Placement,” “Priority,” “URLs,” and all settings under “In-Content Links” but “Single words”—apply right away, from the next page view on. So does lowering “Number of related posts,” or setting it to 0.
-* **Ranking settings**—“Number of related posts,” “Minimum score,” “Debugging,” “Post types,” “Language,” and “Weight of words”—decide which posts are related, and apply after the rebuild that saving them starts. So does “Single words,” which decides the subjects for in-content links.
+* **Display settings**—_Heading_, _Heading level_, _Placement_, _Priority_, _URLs_, and all settings under _In-Content Links_ but _Single words_—apply right away, from the next page view on. So does lowering _Number of related posts_, or setting it to 0.
+* **Ranking settings**—_Number of related posts_, _Minimum score_, _Debugging_, _Post types_, _Language_, and _Weight of words_—decide which posts are related, and apply after the rebuild that saving them starts. So does _Single words_, which decides the subjects for in-content links.
 
 Posts trigger rebuilds, too, a minute after they get published, unpublished, or deleted, or after their title, content, date, password, categories, or tags change. The subjects for in-content links come from these rebuilds as well. Updating ntrnllnk starts one with the next view of the admin area. Besides, every site gets one rebuild a day.
 
@@ -130,13 +130,13 @@ Each signal is a [TF-IDF](https://en.wikipedia.org/wiki/Tf%E2%80%93idf) vector, 
 
 ### Scores
 
-Scores tend to be small: Two posts on the same subject often score around 0.05–0.1, and only near-duplicates get close to 1. They also depend on the site—the more varied its topics, the lower they are overall—so a good “Minimum score” on one site may not suit another.
+Scores tend to be small: Two posts on the same subject often score around 0.05–0.1, and only near-duplicates get close to 1. They also depend on the site—the more varied its topics, the lower they are overall—so a good _Minimum score_ on one site may not suit another.
 
-“Minimum score” affects only the list of related posts, not in-content links. Raising it drops weak matches, so lists get shorter, and posts without strong matches lose their list. As an example, on one German blog with about 150 posts, entries below 0.03 were mostly unrelated, those between 0.03 and 0.04 mixed, and most above 0.04 fitting; at 0.04, 11 of the posts had no list, and those with one had about 4 entries. If your lists show unrelated posts, raise “Minimum score”; if fitting posts are missing, lower it. Even at 0, a post can be without a list, if it shares no words, links, or terms with any other post that count.
+_Minimum score_ affects only the list of related posts, not in-content links. Raising it drops weak matches, so lists get shorter, and posts without strong matches lose their list. As an example, on one German blog with about 150 posts, entries below 0.03 were mostly unrelated, those between 0.03 and 0.04 mixed, and most above 0.04 fitting; at 0.04, 11 of the posts had no list, and those with one had about 4 entries. If your lists show unrelated posts, raise _Minimum score_; if fitting posts are missing, lower it. Even at 0, a post can be without a list, if it shares no words, links, or terms with any other post that count.
 
-To see where to set it, turn on “Debugging”: Logged-in users (contributors and above) then see each listed post’s score, and the share of each signal—like `[score: 0.052 – words 0.031, links 0.021]`. The list then also includes posts that missed “Minimum score,” down to half of it, struck through (`<del>`), so that posts without a list for visitors may show one. Visitors and other users see neither. Some page caches store pages for logged-in users, too; then, turn “Debugging” off when done, or check that the cache leaves these users out. The debugging data comes in `.ntrnllnk-debug` to style it.
+To see where to set it, turn on _Debugging_: Logged-in users (contributors and above) then see each listed post’s score, and the share of each signal—like `[score: 0.052 – words 0.031, links 0.021]`. The list then also includes posts that missed _Minimum score_, down to half of it, struck through (`<del>`), so that posts without a list for visitors may show one. Visitors and other users see neither. Some page caches store pages for logged-in users, too; then, turn _Debugging_ off when done, or check that the cache leaves these users out. The debugging data comes in `.ntrnllnk-debug` to style it.
 
-Stopwords and stems depend on the language. With “Language” set to “Detect per post,” ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are. Languages that don’t separate words with spaces, like Chinese or Japanese, rely mostly on shared links and terms, and since in-content links need capitalized names, scripts without case, like Arabic or Persian, get none.
+Stopwords and stems depend on the language. With _Language_ set to _Detect per post_, ntrnllnk counts German and English stopwords in each post and goes with the clear winner; if there is none, it uses the site language. Content in other languages works, too, only less precisely: Words are compared as they are. Languages that don’t separate words with spaces, like Chinese or Japanese, rely mostly on shared links and terms, and since in-content links need capitalized names, scripts without case, like Arabic or Persian, get none.
 
 Related posts are stored as post meta, the subjects for in-content links as an option; both are refreshed in rebuilds (see [“When Changes Apply”](#when-changes-apply)). A new post can change every other post’s list, so ntrnllnk always recomputes all of them, in batches, with the memory limit raised to WordPress’s `WP_MAX_MEMORY_LIMIT` (adjustable via the `ntrnllnk_memory_limit` filter). When showing the list, it checks again that each related post is still published.
 
@@ -156,7 +156,7 @@ The rebuild does notice it, as it compares all posts with each other for the lis
 
 Up to a few thousand posts, the rebuild fits into the 256 MB that WordPress allows by default. Beyond about 4,000 posts, it may need more: Raise `WP_MAX_MEMORY_LIMIT` (in wp-config.php), or the limit for ntrnllnk alone, via the `ntrnllnk_memory_limit` filter. If PHP’s time limit (`max_execution_time`) is low, a rebuild may also run out of time; then, it doesn’t update related posts, and the previous ones stay. On large sites, it helps to run WP-Cron [via the system’s cron](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/) rather than on page views.
 
-Without the list, the rebuild has hardly anything to do: With “Number of related posts” set to 0, it only finds the subjects for in-content links, which, for 10,000 posts, takes about a second and less than 100 MB. In-content links, in turn, cost little, so turning them off doesn’t make the rebuild noticeably faster.
+Without the list, the rebuild has hardly anything to do: With _Number of related posts_ set to 0, it only finds the subjects for in-content links, which, for 10,000 posts, takes about a second and less than 100 MB. In-content links, in turn, cost little, so turning them off doesn’t make the rebuild noticeably faster.
 
 ## Development
 
