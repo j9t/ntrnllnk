@@ -30,15 +30,15 @@ The full documentation, including all settings and how scores work, is available
 
 = Why do some posts have no or only a short list of links? =
 
-The list includes only posts related closely enough. If lists show unrelated posts, raise _Minimum score_; if fitting posts are missing, lower it. _Debugging_ shows the scores to logged-in users.
+The list includes only posts related closely enough. If lists show unrelated posts, raise “Minimum score”; if fitting posts are missing, lower it. “Debugging” shows the scores to logged-in users.
 
 = How do I add a particular link? =
 
-Add it under _Custom links_, in Markdown, like “[Accessibility](https://example.com/accessibility/)”, or, for a post, with “?p=” and its ID, like “[Agatha Christie](?p=123)”. Custom links don’t count toward _Maximum per post_.
+Add it under “Custom links,” in Markdown, like “[Accessibility](https://example.com/accessibility/)”, or, for a post, with “?p=” and its ID, like “[Agatha Christie](?p=123)”. Custom links don’t count toward “Maximum per post.”
 
 = How do I keep a particular link out? =
 
-Use _Excluded phrases_ (for automatic links; remove custom ones from _Custom links_) or _Excluded posts_. In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
+Use “Excluded phrases” (for automatic links; remove custom ones from “Custom links”) or “Excluded posts.” In-content links are added when a post is shown, not saved to it, so turning them off removes them all.
 
 = When do changed settings apply? =
 
