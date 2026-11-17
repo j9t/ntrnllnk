@@ -4,7 +4,7 @@
 
 ntrnllnk is a configurable [WordPress plugin](https://wordpress.org/plugins/ntrnllnk/) for internal linking. It finds related posts automatically—without any manual input—and links them in two ways: in the content and in a “Further reading” list after each post. It’s optimized for English and German content.
 
-<!-- What’s this, GitHub -->
+<!-- Oh no, GitHub -->
 <div align="center">
 	<a href="https://wordpress.org/plugins/ntrnllnk/"><img src="https://ps.w.org/ntrnllnk/assets/icon-256x256.png" alt="ntrnllnk on wordpress.org.”" width="150" height="150"></a>
 </div>
