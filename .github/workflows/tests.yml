@@ -17,11 +17,13 @@ concurrency:
 jobs:
   test:
     strategy:
+      fail-fast: false
       matrix:
         # PHPUnit needs PHP 8.4+; PHPCompatibility checks the plugin against PHP 8.1+
         php: ["8.4", "8.5"]
     name: "PHP ${{ matrix.php }}"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: "Check out repository"
         uses: actions/checkout@v7
