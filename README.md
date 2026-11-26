@@ -180,6 +180,16 @@ dist/ is generated, so don’t edit it; rebuild before every deployment.
 
 On GitHub, every push to `main` and every pull request is built, too, with the oldest supported PHP version. The plugin zip is attached to the workflow run for 30 days.
 
+### Quick-Testing
+
+Use WordPress Playground CLI to test locally, as with
+
+```shell
+npx @wp-playground/cli@latest server --auto-mount --wp=7.2 --php=8.5 --blueprint=blueprint.json
+```
+
+The blueprint logs in (otherwise via “admin”, “password”), runs WP-Cron via `ALTERNATE_WP_CRON`, as Playground cannot run it otherwise, so that rebuilds happen, turns on _Debugging_, and imports WordPress’s [theme test data](https://github.com/WordPress/theme-test-data), for a few dozen posts with categories and tags. Their placeholder text makes for related posts that work, though don’t convince; for realistic ones, import a site’s export via _Tools_ → _Import_ → _WordPress_.
+
 ### Benchmarking
 
 `composer bench` measures a rebuild outside WordPress: how long building documents, ranking, and finding phrases take, and how much memory they need. It uses 2,000 generated posts by default; set another number with `composer bench -- --posts=10000`, or use a site’s posts, exported with WP-CLI (`benchmark.json` is ignored by Git):

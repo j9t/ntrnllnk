@@ -3,7 +3,7 @@ Contributors: j9t
 Donate link: https://github.com/sponsors/j9t
 Tags: internal links, related posts, linking, links, seo
 Requires at least: 6.5
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 8.1
 Stable tag: 1.3.0
 License: GPL-3.0-or-later

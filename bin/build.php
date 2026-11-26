@@ -14,7 +14,7 @@ const NTRNLLNK_NAME = 'ntrnllnk';
 /**
  * Files that must not end up in a build
  */
-const NTRNLLNK_FILES_DEV = [ '.git', 'bin', 'composer.json', 'composer.lock', 'phpunit.xml.dist', 'tests', 'vendor' ];
+const NTRNLLNK_FILES_DEV = [ '.git', 'bin', 'blueprint.json', 'composer.json', 'composer.lock', 'phpunit.xml.dist', 'tests', 'vendor' ];
 
 /**
  * Runs a command in the project root and returns its output

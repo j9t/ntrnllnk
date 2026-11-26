@@ -1,0 +1,27 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "login": true,
+  "steps": [
+    {
+      "step": "defineWpConfigConsts",
+      "consts": {
+        "ALTERNATE_WP_CRON": true
+      }
+    },
+    {
+      "step": "setSiteOptions",
+      "options": {
+        "ntrnllnk_settings": {
+          "debug": true
+        }
+      }
+    },
+    {
+      "step": "importWxr",
+      "file": {
+        "resource": "url",
+        "url": "https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml"
+      }
+    }
+  ]
+}
